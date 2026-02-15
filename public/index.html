@@ -1,0 +1,957 @@
+<!doctype html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>2V1M</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&family=Inter:wght@400;500;600&display=swap');
+
+    :root {
+      /* Palette - Modern Dark "Slate" Theme */
+      --bg-app: #0f172a;
+      /* Slate 900 */
+      --bg-card: #1e293b;
+      /* Slate 800 */
+      --bg-input: #334155;
+      /* Slate 700 */
+
+      --txt-main: #f8fafc;
+      /* Slate 50 */
+      --txt-muted: #94a3b8;
+      /* Slate 400 */
+
+      --accent-primary: #6366f1;
+      /* Indigo 500 */
+      --accent-hover: #4f46e5;
+      /* Indigo 600 */
+      --accent-glow: rgba(99, 102, 241, 0.5);
+
+      --danger: #ef4444;
+      /* Red 500 */
+      --success: #10b981;
+      /* Emerald 500 */
+      --warning: #f59e0b;
+      /* Amber 500 */
+
+      --radius-lg: 24px;
+      --radius-md: 16px;
+      --radius-sm: 12px;
+
+      --shadow-elevation: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+      --shadow-glow: 0 0 20px var(--accent-glow);
+
+      --font-display: 'Space Grotesk', system-ui, sans-serif;
+      --font-body: 'Inter', system-ui, sans-serif;
+    }
+
+    /* RESET & BASE */
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      margin: 0;
+      background-color: var(--bg-app);
+      color: var(--txt-main);
+      font-family: var(--font-body);
+      font-size: 16px;
+      line-height: 1.5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    h1,
+    h2,
+    h3 {
+      margin: 0;
+      font-family: var(--font-display);
+      font-weight: 700;
+    }
+
+    p {
+      margin: 0;
+      color: var(--txt-muted);
+    }
+
+    /* LAYOUT & UTILS */
+    .app-container {
+      width: 100%;
+      max-width: 540px;
+      margin: 0 auto;
+      padding: 20px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .fade-in {
+      animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* COMPONENTS */
+    .brand-title {
+      font-size: 2.5rem;
+      text-align: center;
+      background: linear-gradient(135deg, #fff 0%, #cbd5e1 100%);
+      background-clip: text;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+      letter-spacing: -0.03em;
+    }
+
+    .tagline {
+      text-align: center;
+      margin-bottom: 32px;
+      font-size: 1rem;
+      opacity: 0.8;
+    }
+
+    /* Cards & Containers */
+    .view-section {
+      display: none;
+      /* Managed by JS */
+      flex-direction: column;
+      gap: 24px;
+      width: 100%;
+    }
+
+    .view-section.active {
+      display: flex;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: var(--shadow-elevation);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    /* Forms */
+    .input-group {
+      margin-bottom: 20px;
+      text-align: left;
+    }
+
+    .input-group label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--txt-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    input,
+    textarea,
+    select {
+      width: 100%;
+      background: var(--bg-input);
+      border: 2px solid transparent;
+      color: white;
+      padding: 14px 16px;
+      border-radius: var(--radius-md);
+      font-family: inherit;
+      font-size: 1rem;
+      transition: all 0.2s;
+    }
+
+    input::placeholder,
+    textarea::placeholder {
+      color: rgba(255, 255, 255, 0.3);
+    }
+
+    input:focus,
+    textarea:focus,
+    select:focus {
+      outline: none;
+      border-color: var(--accent-primary);
+      background: rgba(99, 102, 241, 0.1);
+      box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    /* Buttons */
+    button {
+      width: 100%;
+      cursor: pointer;
+      border: none;
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 1.05rem;
+      padding: 16px;
+      border-radius: var(--radius-md);
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: var(--accent-primary);
+      color: white;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+
+    .btn-primary:active {
+      transform: scale(0.98);
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      box-shadow: var(--shadow-glow);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--txt-main);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--danger);
+    }
+
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.25);
+    }
+
+    /* Tab Switcher */
+    .tabs {
+      display: flex;
+      background: var(--bg-input);
+      padding: 4px;
+      border-radius: var(--radius-md);
+      margin-bottom: 24px;
+    }
+
+    .tab-btn {
+      flex: 1;
+      background: transparent;
+      color: var(--txt-muted);
+      padding: 10px;
+      border-radius: var(--radius-sm);
+      font-size: 0.95rem;
+    }
+
+    .tab-btn.active {
+      background: var(--bg-card);
+      color: var(--txt-main);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Lists */
+    .list-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .list-item:last-child {
+      border-bottom: none;
+    }
+
+    /* Game Specific Elements */
+    .statement-card {
+      background: var(--bg-input);
+      padding: 20px;
+      border-radius: var(--radius-md);
+      margin-bottom: 12px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all 0.2s;
+      text-align: left;
+    }
+
+    .statement-card:hover {
+      transform: translateY(-2px);
+      background: #3c4c66;
+    }
+
+    .statement-card.selected {
+      border-color: var(--accent-primary);
+      background: rgba(99, 102, 241, 0.1);
+    }
+
+    .status-pill {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 99px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.1);
+      margin-bottom: 20px;
+    }
+
+    /* Radio Tiles for "Pick the Lie" */
+    .radio-tiles {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .radio-tile-label {
+      cursor: pointer;
+      background: var(--bg-input);
+      padding: 12px;
+      border-radius: var(--radius-sm);
+      text-align: center;
+      font-weight: 600;
+      transition: 0.2s;
+      border: 1px solid transparent;
+    }
+
+    .radio-tile-label:has(input:checked) {
+      background: var(--accent-primary);
+      color: white;
+      border-color: var(--accent-primary);
+    }
+
+    .radio-tile-label input {
+      display: none;
+    }
+
+    /* Results */
+    .result-row {
+      background: rgba(255, 255, 255, 0.03);
+      margin-bottom: 8px;
+      padding: 12px 16px;
+      border-radius: var(--radius-md);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .result-row.winner {
+      background: linear-gradient(90deg, rgba(16, 185, 129, 0.1), transparent);
+      border-left: 3px solid var(--success);
+    }
+
+    .score-badge {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+
+    /* Header Info */
+    .session-header {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      font-size: 0.75rem;
+      opacity: 0.5;
+      text-align: right;
+    }
+
+    .offline-badge {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--danger);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      animation: slideUp 0.3s ease-out;
+    }
+
+    @keyframes slideUp {
+      from {
+        transform: translate(-50%, 20px);
+        opacity: 0;
+      }
+
+      to {
+        transform: translate(-50%, 0);
+        opacity: 1;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Top Right Meta -->
+  <div class="session-header" id="sessionMeta"></div>
+
+  <!-- Offline Badge -->
+  <div id="offline-badge" class="offline-badge hidden">
+    <span>⚠️ Connexion perdue...</span>
+  </div>
+
+  <div class="app-container">
+
+    <!-- VIEW: WELCOME / LOBBY ENTRY -->
+    <section id="view-welcome" class="view-section active fade-in">
+      <div>
+        <h1 class="brand-title">2V1M</h1>
+        <p class="tagline">Deux Vériés, Un Mensonge.</p>
+      </div>
+
+      <div class="card">
+        <div class="tabs">
+          <button class="tab-btn active" onclick="switchEntryMode('create')">Créer</button>
+          <button class="tab-btn" onclick="switchEntryMode('join')">Rejoindre</button>
+        </div>
+
+        <!-- CREATE FORM -->
+        <div id="panel-create">
+          <div style="text-align: center; margin: 30px 0;">
+            <p style="margin-bottom: 20px;">Lance une nouvelle partie instantanément.</p>
+            <div class="input-group">
+              <label>Code Partie (Optionnel)</label>
+              <input id="inp-code-create" placeholder="Auto" maxlength="9"
+                style="text-transform:uppercase; letter-spacing: 2px; text-align: center; font-family: var(--font-display); font-weight: 700;">
+            </div>
+            <button class="btn-primary" id="btn-create">Créer une Partie</button>
+          </div>
+        </div>
+
+        <!-- JOIN FORM -->
+        <div id="panel-join" class="hidden">
+          <div class="input-group">
+            <label>Code Partie</label>
+            <input id="inp-code" placeholder="Ex: A1B2C" maxlength="5"
+              style="text-transform:uppercase; letter-spacing: 2px; text-align: center; font-family: var(--font-display); font-weight: 700;">
+          </div>
+
+          <div class="input-group">
+            <label>Ton Pseudo</label>
+            <input id="inp-nick" placeholder="Surnom" maxlength="20">
+          </div>
+
+          <div class="input-group">
+            <label>Groupe</label>
+            <select id="inp-group">
+              <option value="" disabled selected>Choisir un groupe...</option>
+            </select>
+          </div>
+          <label
+            style="display:flex; align-items:center; gap:10px; margin-bottom: 20px; font-size: 0.9rem; color: var(--txt-muted);">
+            <input type="checkbox" id="chk-newgroup" style="width: auto; margin:0;"> Créer un nouveau groupe
+          </label>
+
+          <button class="btn-primary" id="btn-join">Rejoindre</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW: LOBBY -->
+    <section id="view-lobby" class="view-section fade-in">
+      <h2 style="text-align: center;">Salle d'attente</h2>
+      <div style="display: flex; justify-content: center; gap: 8px; margin-bottom: 16px;">
+        <span class="status-pill" id="lbl-lobby-code">CODE: ----</span>
+        <span class="status-pill" id="lbl-lobby-players">0 Joueurs</span>
+      </div>
+
+      <!-- Statements Input -->
+      <div class="card" id="card-prep-statements">
+        <h3>Tes Énoncés</h3>
+        <p style="margin-bottom: 16px; font-size: 0.9rem;">Écris 2 vérités et 1 mensonge sur toi.</p>
+
+        <div style="display: grid; gap: 12px;">
+          <textarea id="txt-s1" placeholder="Énoncé 1..." rows="2" style="min-height: 70px;"></textarea>
+          <textarea id="txt-s2" placeholder="Énoncé 2..." rows="2" style="min-height: 70px;"></textarea>
+          <textarea id="txt-s3" placeholder="Énoncé 3..." rows="2" style="min-height: 70px;"></textarea>
+        </div>
+
+        <div style="margin-top: 20px;">
+          <p style="font-size: 0.85rem; font-weight: 600; text-transform: uppercase;">Lequel est le mensonge ?</p>
+          <div class="radio-tiles">
+            <label class="radio-tile-label">
+              <input type="radio" name="lie" value="0"> <span>#1</span>
+            </label>
+            <label class="radio-tile-label">
+              <input type="radio" name="lie" value="1"> <span>#2</span>
+            </label>
+            <label class="radio-tile-label">
+              <input type="radio" name="lie" value="2" checked> <span>#3</span>
+            </label>
+          </div>
+        </div>
+
+        <button class="btn-primary" style="margin-top: 24px;" id="btn-submit-statements">Valider & Prêt</button>
+        <p id="msg-prep-status" style="text-align: center; margin-top: 12px; color: var(--success);" class="hidden">✅
+          Énoncés envoyés ! En attente des autres...</p>
+      </div>
+
+      <div class="card">
+        <h3>Participants</h3>
+        <div id="list-lobby-players" style="margin-top: 12px;"></div>
+      </div>
+
+      <div style="text-align:center; margin-top:20px;">
+        <p class="hidden" id="msg-lobby-autostart" style="font-size:0.8rem; color:var(--txt-muted);">La partie démarrera
+          quand tout le monde sera prêt...</p>
+      </div>
+    </section>
+
+    <!-- VIEW: GAME QUESTIONING -->
+    <section id="view-game" class="view-section fade-in">
+      <div style="text-align: center; margin-bottom: 20px;">
+        <span class="status-pill" style="background: var(--accent-primary);">En Jeu</span>
+        <h2 id="lbl-narrator-name">Au tour de...</h2>
+      </div>
+
+      <div class="card">
+        <p style="text-align: center; margin-bottom: 20px;">Quelle affirmation est un <strong>mensonge</strong> ?</p>
+        <div id="list-vote-options" style="display: flex; flex-direction: column; gap: 12px;"></div>
+        <p id="msg-host-wait" class="hidden"
+          style="text-align:center; margin-top:20px; color:var(--txt-muted); font-size:0.9rem;">En attente de la
+          soumission du narrateur...</p>
+      </div>
+
+      <p id="msg-vote-wait" style="text-align: center; margin-top: 20px;" class="hidden">Vote enregistré. En attente du
+        résultat...</p>
+    </section>
+
+    <!-- VIEW: REVEAL -->
+    <section id="view-reveal" class="view-section fade-in">
+      <div style="text-align: center; margin-bottom: 20px;">
+        <h1 style="font-size: 3rem; margin-bottom: 10px;">👺</h1>
+        <h2>Résultat</h2>
+      </div>
+
+      <div class="card" id="card-reveal-info" style="text-align: center;">
+        <!-- Filled by JS -->
+      </div>
+
+      <!-- Timer or Button to next -->
+      <p style="text-align: center; margin-top: 20px; opacity:0.6;">Le prochain tour va démarrer...</p>
+    </section>
+
+    <!-- VIEW: SCORES -->
+    <section id="view-scores" class="view-section fade-in">
+      <h2 style="text-align: center; margin-bottom: 24px;">Classement</h2>
+      <div id="list-scores" style="display: flex; flex-direction: column; gap: 8px;"></div>
+    </section>
+
+  </div>
+
+  <!-- AUDIO -->
+  <audio id="sfx-reveal" src="" preload="auto"></audio>
+
+  <script>
+    /* --- STATE & UTILS --- */
+    const state = {
+      view: 'welcome', // welcome, lobby, game, reveal, scores
+      code: null,
+      playerId: null,
+      snapshot: null,
+      myVotes: new Set(),
+      hasSubmittedPrep: false,
+      isOffline: false
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    const api = async (endpoint, method = 'GET', body = null) => {
+      const headers = { 'Content-Type': 'application/json' };
+      if (state.playerId) headers['x-player-id'] = state.playerId;
+
+      try {
+        const res = await fetch(`/api/v1${endpoint}`, { method, headers, body: body ? JSON.stringify(body) : null });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Error');
+        setOffline(false);
+        return data;
+      } catch (e) {
+        // If it's a polling GET, we might want to suppress the alert and show offline status
+        if (method === 'GET' && endpoint.startsWith('/parties/')) {
+          console.warn('Polling failed:', e);
+          throw e; // let caller handle or ignore
+        }
+
+        alert('Erreur: ' + e.message);
+        console.error(e);
+        throw e;
+      }
+    };
+
+    function setOffline(isOffline) {
+      if (state.isOffline === isOffline) return;
+      state.isOffline = isOffline;
+      const badge = $('offline-badge');
+      if (isOffline) badge.classList.remove('hidden');
+      else badge.classList.add('hidden');
+    }
+
+    /* --- UI CONTROL --- */
+    function switchView(viewName) {
+      if (state.view === viewName) return;
+      document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+      const target = $(`view-${viewName}`);
+      if (target) {
+        target.classList.add('active');
+        // Re-trigger animation
+        target.style.animation = 'none';
+        target.offsetHeight; /* trigger reflow */
+        target.style.animation = null;
+      }
+      state.view = viewName;
+      window.scrollTo(0, 0);
+    }
+
+    function switchEntryMode(mode) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      if (mode === 'create') {
+        $('panel-create').classList.remove('hidden');
+        $('panel-join').classList.add('hidden');
+        document.querySelector('button[onclick="switchEntryMode(\'create\')"]').classList.add('active');
+      } else {
+        $('panel-create').classList.add('hidden');
+        $('panel-join').classList.remove('hidden');
+        document.querySelector('button[onclick="switchEntryMode(\'join\')"]').classList.add('active');
+        refreshGroups();
+      }
+    }
+
+    // Attach to window for onclick handlers
+    window.switchEntryMode = switchEntryMode;
+
+    /* --- GAME LOGIC --- */
+
+    // 1. CREATE / JOIN
+    $('btn-create').onclick = async () => {
+      const code = $('inp-code-create').value.toUpperCase().trim();
+
+      const body = {};
+      if (code) body.code = code;
+
+      const res = await api('/parties', 'POST', body);
+
+      // Create as Spectator/Host Only
+      state.code = res.code;
+      state.playerId = null; // No player ID
+      startPolling();
+
+      // Auto-fill code in Join tab for convenience
+      $('inp-code').value = res.code;
+      refreshGroups();
+    };
+
+    $('btn-join').onclick = async () => {
+      const code = $('inp-code').value.toUpperCase().trim();
+      const nick = $('inp-nick').value.trim();
+      const groupIdx = $('inp-group').value;
+      const newGroup = $('chk-newgroup').checked;
+
+      if (!code || !nick) return alert('Code et Pseudo requis');
+
+      await performJoin(code, nick, false, groupIdx, newGroup);
+    };
+
+    async function performJoin(code, nick, isHost, groupIdx, createGroup) {
+      try {
+        const body = { nickname: nick };
+
+        if (createGroup) body.createGroup = true;
+        else if (groupIdx) body.groupIndex = parseInt(groupIdx);
+
+        const res = await api(`/parties/${code}/join`, 'POST', body);
+        state.playerId = res.playerId;
+        state.code = code;
+        startPolling();
+      } catch (e) { console.error(e); }
+    }
+
+    async function refreshGroups() {
+      const code = $('inp-code').value;
+      if (code.length < 4) return;
+      try {
+        const p = await api(`/parties/${code}`);
+        const sel = $('inp-group');
+        sel.innerHTML = '<option value="" disabled selected>Choisir un groupe...</option>';
+        p.groups.forEach(g => {
+          const opt = document.createElement('option');
+          opt.value = g.idx;
+          opt.innerText = `Groupe ${g.idx} (${g.players.length} joueurs)`;
+          sel.appendChild(opt);
+        });
+      } catch (e) { }
+    }
+    $('inp-code').onkeyup = refreshGroups;
+
+    // 2. PREP (LOBBY)
+    $('btn-submit-statements').onclick = async () => {
+      const s1 = $('txt-s1').value;
+      const s2 = $('txt-s2').value;
+      const s3 = $('txt-s3').value;
+      const lieIdx = parseInt(document.querySelector('input[name="lie"]:checked').value);
+
+      if (!s1 || !s2 || !s3) return alert('Remplis les 3 énoncés !');
+
+      const items = [
+        { text: s1, isLie: lieIdx === 0 },
+        { text: s2, isLie: lieIdx === 1 },
+        { text: s3, isLie: lieIdx === 2 }
+      ];
+
+      await api(`/parties/${state.code}/statements`, 'POST', { items });
+      state.hasSubmittedPrep = true;
+      $('card-prep-statements').style.opacity = '0.5';
+      $('card-prep-statements').style.pointerEvents = 'none';
+      $('msg-prep-status').classList.remove('hidden');
+      $('msg-lobby-autostart').classList.remove('hidden');
+    };
+
+    // 3. GAMEPLAY
+    async function sendVote(statementId) {
+      const round = getMyActiveRound();
+      if (!round) return;
+
+      await api(`/rounds/${round.id}/vote`, 'POST', { statementId });
+      state.myVotes.add(round.id);
+      renderGameView(); // update UI locally immediately
+    }
+
+    /* --- SYNC & RENDER --- */
+    function startPolling() {
+      setInterval(async () => {
+        if (!state.code) return;
+        try {
+          const snap = await api(`/parties/${state.code}`);
+          state.snapshot = snap;
+          render();
+        } catch (e) {
+          // Should be network error mostly
+          setOffline(true);
+        }
+      }, 1000); // 1s polling
+    }
+
+    function render() {
+      const s = state.snapshot;
+      if (!s) return;
+
+      // Meta header
+      const me = state.playerId ? s.players.find(p => p.id === state.playerId) : null;
+      $('sessionMeta').innerText = `Code: ${s.code} | ${me?.nickname || 'Spectateur'}`;
+
+      // View Router Logic
+      const myGroup = s.groups.find(g => g.players.some(p => p.id === state.playerId));
+
+      // 1. Lobby
+      if (s.status === 'LOBBY' || s.status === 'RUNNING_PHASE1_PREP') {
+        switchView('lobby');
+        renderLobby(s);
+        // Hide statements input if spectator
+        if (!me) {
+          $('card-prep-statements').classList.add('hidden');
+          $('msg-lobby-autostart').classList.remove('hidden');
+          $('msg-lobby-autostart').innerText = "En tant que spectateur, vous voyez la salle d'attente.";
+        } else {
+          $('card-prep-statements').classList.remove('hidden');
+        }
+        return;
+      }
+
+      // 2. Running (Phase 1 & 2)
+      if (s.status === 'RUNNING_PHASE1' || s.status === 'RUNNING_PHASE2') {
+        // Are we inside a round ?
+        if (myGroup && myGroup.status === 'DONE' && s.status === 'RUNNING_PHASE1') {
+          // Group finished phase 1
+          switchView('scores');
+          renderScores(s);
+          return;
+        }
+
+        const activeR = getMyActiveRound();
+
+        if (activeR && (activeR.status === 'VOTING' || activeR.status === 'QUESTIONING')) {
+          switchView('game');
+          renderGameRound(activeR, s);
+        } else if (!state.playerId) {
+          // Spectator View of running game
+          // Pick the first active round from any group to show "something"
+          const anyRound = s.groups.find(g => g.currentRound)?.currentRound;
+          if (anyRound) {
+            switchView('game');
+            renderGameRound(anyRound, s);
+          } else if (s.lastReveal) {
+            switchView('reveal');
+            renderReveal(s.lastReveal);
+          } else {
+            $('sessionMeta').innerText += ' (En attente...)';
+          }
+        } else {
+          // If no active round (between rounds), check for lastReveal
+          if (s.lastReveal) {
+            switchView('reveal');
+            renderReveal(s.lastReveal);
+          } else {
+            // Waiting / Spectator
+            if (s.status === 'RUNNING_PHASE1' && !myGroup) {
+              $('sessionMeta').innerText += ' (Spectateur)';
+            }
+            // Could show "Waiting for next round"
+          }
+        }
+      }
+
+      // 3. Finished
+      if (s.status === 'FINISHED') {
+        switchView('scores');
+        renderScores(s);
+      }
+    }
+
+    function renderLobby(s) {
+      $('lbl-lobby-code').innerText = s.code;
+      $('lbl-lobby-players').innerText = `${s.players.length} Joueurs`;
+
+      const list = $('list-lobby-players');
+      list.innerHTML = '';
+      s.players.forEach(p => {
+        const row = document.createElement('div');
+        row.className = 'list-item';
+        row.innerHTML = `<span>${p.nickname}</span><span style="font-size:0.8em; opacity:0.6;">Grp ${getGroupIdx(s, p.groupId)}</span>`;
+        list.appendChild(row);
+      });
+    }
+
+    function renderGameRound(round, s) {
+      const narrator = s.players.find(p => p.id === round.narratorId);
+      $('lbl-narrator-name').innerText = `Au tour de ${narrator?.nickname || 'Inconnu'}`;
+
+      const list = $('list-vote-options');
+      list.innerHTML = '';
+
+      const isNarrator = round.narratorId === state.playerId;
+      const hasVoted = round.votes && round.votes.some(v => v.playerId === state.playerId);
+
+      if (round.status === 'QUESTIONING') {
+        $('msg-host-wait').classList.remove('hidden');
+        $('list-vote-options').innerHTML = ''; // Hide buttons
+        $('msg-vote-wait').classList.add('hidden');
+        return;
+      }
+
+      $('msg-host-wait').classList.add('hidden');
+
+      if (isNarrator) {
+        $('msg-vote-wait').innerText = "C'est ton tour. Reste de marbre !";
+        $('msg-vote-wait').classList.remove('hidden');
+      } else if (hasVoted) {
+        $('msg-vote-wait').innerText = "Vote enregistré. Suspense...";
+        $('msg-vote-wait').classList.remove('hidden');
+      } else {
+        $('msg-vote-wait').classList.add('hidden');
+      }
+
+      if (round.statements) {
+        round.statements.forEach(stmt => {
+          const btn = document.createElement('div');
+          btn.className = 'statement-card';
+          if (hasVoted || isNarrator) {
+            btn.style.opacity = '0.5';
+            btn.style.cursor = 'default';
+          } else {
+            btn.onclick = () => sendVote(stmt.id);
+          }
+          btn.innerText = stmt.text;
+          list.appendChild(btn);
+        });
+      }
+    }
+
+    function renderReveal(revealData) {
+      // revealData is from snapshot.lastReveal structure
+      const div = $('card-reveal-info');
+      div.innerHTML = `
+           <p style="text-transform:uppercase; font-size: 0.9rem; letter-spacing:1px; margin-bottom:12px;">Le mensonge de <strong style="color:var(--txt-main);">${revealData.narratorNickname}</strong> était :</p>
+           <h3 style="font-size: 1.5rem; color: var(--accent-primary); margin-bottom: 24px;">« ${revealData.lieText || '???'} »</h3>
+           <div class="result-row winner" style="justify-content: center;">
+             <span>La vérité éclate !</span>
+           </div>
+         `;
+    }
+
+    function renderScores(s) {
+      const list = $('list-scores');
+      list.innerHTML = '';
+
+      // Sort players by total score
+      const sorted = [...s.players].sort((a, b) => {
+        const sa = s.scores[a.id]?.total || 0;
+        const sb = s.scores[b.id]?.total || 0;
+        return sb - sa;
+      });
+
+      sorted.forEach((p, idx) => {
+        const row = document.createElement('div');
+        row.className = 'result-row';
+        if (idx === 0) row.classList.add('winner');
+
+        const sc = s.scores[p.id];
+        row.innerHTML = `
+             <div style="display:flex; align-items:center; gap:12px;">
+               <span style="font-weight:700; width:20px;">#${idx + 1}</span>
+               <span>${p.nickname}</span>
+             </div>
+             <span class="score-badge">${sc ? sc.total : 0} pts</span>
+           `;
+        list.appendChild(row);
+      });
+    }
+
+    function getGroupIdx(s, gid) {
+      const g = s.groups.find(x => x.id === gid);
+      try {
+        return g ? g.idx : '?';
+      } catch { return '?'; }
+    }
+
+    function getMyActiveRound() {
+      if (!state.snapshot) return null;
+      const s = state.snapshot;
+      // See backend logic: snapshot returns 'groups' which contain 'currentRound'
+      const grp = s.groups.find(g => g.players.some(p => p.id === state.playerId));
+      return grp ? grp.currentRound : null;
+    }
+
+  </script>
+</body>
+
+</html>
