@@ -18,7 +18,7 @@
 4. **Les joueurs interrogent librement** le narrateur 
 5. **Dès qu'ils pensent avoir trouvé le mensonge** ils votent
 6. **Des points sont attribués** selon la justesse et la rapidité
-7. **Le meilleur menteur gagne** ! 🏆
+7. **L'enquêteur le plus perspicace gagne** ! 🏆
 
 ## 🚀 Démarrage Rapide
 
