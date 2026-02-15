@@ -15,6 +15,8 @@ Traduire la PRD produit en spécification technique directement implémentable:
 - Distinction meilleur menteur par groupe
 - Phase 2 (Cour des Menteurs) avec restrictions d’éligibilité
 - Score final consolidé et gestion des ex aequo
+- **Mode spectateur** avec URL dédiée et tableau de scores live
+- **Indicateurs visuels de groupe** avec badges colorés pour identification rapide
 
 Hors MVP:
 - Historique long terme
@@ -245,8 +247,58 @@ Messages d’erreur courts et stables (`code`, `message`).
   - reprendre identité si token valide
   - sinon flow "reclaim nickname" (OTP simple optionnel post-MVP)
 
-## 13. UX flows critiques
-### 13.1 Host happy path
+## 13. Mode Spectateur
+### 13.1 Fonctionnalités
+- **URL dédiée**: `/spectate/:code` pour accès direct sans rejoindre
+- **Tableau de scores live**: Affichage en temps réel pendant Phase 1 et Phase 2
+- **Vue synchronisée**: Suit automatiquement les manches actives
+- **Partage facile**: Bouton de copie du lien spectateur dans le lobby
+
+### 13.2 Implémentation
+- **Routing côté client**: Détection automatique de l'URL au chargement
+- **Mode spectateur**: `state.playerId = null` + `state.isSpectatorMode = true`
+- **Polling**: Mise à jour automatique toutes les 1s via `/api/v1/parties/:code`
+- **UI adaptée**:
+  - Masquage des contrôles joueur
+  - Affichage du scoreboard flottant (desktop) ou intégré (mobile)
+  - Détails des scores: Phase 1, Phase 2, Total
+
+### 13.3 Routes serveur
+```javascript
+// Serve index.html for all non-API GET requests (client-side routing)
+GET /spectate/:code -> index.html
+GET /join/:code -> index.html (legacy support)
+```
+
+### 13.4 Cas d'usage
+- **Projection sur grand écran** lors d'événements
+- **Suivi à distance** pour organisateurs
+- **Streaming** pour audiences externes
+- **Multi-écrans** pour grandes parties
+
+## 14. Indicateurs Visuels de Groupe
+### 14.1 Fonctionnalités
+- **Badge de groupe dans l'en-tête**: Affichage permanent du groupe du joueur avec icône 👥
+- **Couleurs distinctives**: 6 gradients de couleurs pour différencier visuellement les groupes
+- **Badges dans le lobby**: Chaque joueur affiché avec son badge de groupe coloré
+- **Identification rapide**: Le joueur voit immédiatement "vous" à côté de son nom
+
+### 14.2 Palette de couleurs
+1. **Groupe 1**: Indigo → Violet (#6366f1 → #8b5cf6)
+2. **Groupe 2**: Vert → Turquoise (#10b981 → #14b8a6)
+3. **Groupe 3**: Orange → Orange foncé (#f59e0b → #f97316)
+4. **Groupe 4**: Rose → Rouge (#ec4899 → #f43f5e)
+5. **Groupe 5**: Bleu → Cyan (#3b82f6 → #06b6d4)
+6. **Groupe 6**: Violet → Magenta (#8b5cf6 → #d946ef)
+
+### 14.3 Implémentation
+- **Classes CSS**: `.group-color-1` à `.group-color-6` avec gradients
+- **Badge component**: `.group-badge` avec ombre et border-radius
+- **Responsive**: Badge visible en permanence (position fixed top-right)
+- **Accessibilité**: Contraste élevé, texte blanc sur fond coloré
+
+## 15. UX flows critiques
+### 14.1 Host happy path
 1. Create party
 2. Share link
 3. Assign groups

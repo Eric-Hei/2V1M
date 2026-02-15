@@ -369,15 +369,134 @@
       font-size: 1.1rem;
     }
 
+    /* Live Scoreboard */
+    .live-scoreboard {
+      position: fixed;
+      top: 60px;
+      right: 20px;
+      width: 280px;
+      max-height: calc(100vh - 80px);
+      overflow-y: auto;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      z-index: 100;
+    }
+
+    .live-scoreboard h3 {
+      margin: 0 0 12px 0;
+      font-size: 1rem;
+      text-align: center;
+      color: var(--txt-primary);
+    }
+
+    .live-scoreboard.hidden {
+      display: none;
+    }
+
+    .score-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px;
+      margin-bottom: 4px;
+      border-radius: 6px;
+      background: var(--bg-primary);
+      font-size: 0.85rem;
+    }
+
+    .score-row.top {
+      background: linear-gradient(90deg, rgba(16, 185, 129, 0.15), transparent);
+      border-left: 3px solid var(--success);
+    }
+
+    .score-row .player-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .score-row .rank {
+      font-weight: 700;
+      width: 24px;
+      color: var(--txt-muted);
+    }
+
+    .score-row .nickname {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .score-row .points {
+      font-weight: 700;
+      font-family: var(--font-display);
+      color: var(--accent-primary);
+    }
+
+    .score-details {
+      font-size: 0.75rem;
+      color: var(--txt-muted);
+      margin-left: 32px;
+    }
+
+    @media (max-width: 768px) {
+      .live-scoreboard {
+        position: static;
+        width: 100%;
+        max-height: none;
+        margin-bottom: 20px;
+      }
+    }
+
     /* Header Info */
     .session-header {
-      position: absolute;
+      position: fixed;
       top: 20px;
       right: 20px;
-      font-size: 0.75rem;
-      opacity: 0.5;
-      text-align: right;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-size: 0.85rem;
+      z-index: 50;
+      flex-direction: column;
+      align-items: flex-end;
     }
+
+    .session-info {
+      opacity: 0.6;
+      font-size: 0.75rem;
+    }
+
+    .group-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+      color: white;
+      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+    }
+
+    .group-badge-icon {
+      font-size: 1rem;
+    }
+
+    /* Group colors */
+    .group-color-1 { background: linear-gradient(135deg, #6366f1, #8b5cf6); }
+    .group-color-2 { background: linear-gradient(135deg, #10b981, #14b8a6); }
+    .group-color-3 { background: linear-gradient(135deg, #f59e0b, #f97316); }
+    .group-color-4 { background: linear-gradient(135deg, #ec4899, #f43f5e); }
+    .group-color-5 { background: linear-gradient(135deg, #3b82f6, #06b6d4); }
+    .group-color-6 { background: linear-gradient(135deg, #8b5cf6, #d946ef); }
 
     .offline-badge {
       position: fixed;
@@ -418,6 +537,12 @@
   <!-- Offline Badge -->
   <div id="offline-badge" class="offline-badge hidden">
     <span>⚠️ Connexion perdue...</span>
+  </div>
+
+  <!-- Live Scoreboard (for spectators and during game) -->
+  <div id="live-scoreboard" class="live-scoreboard hidden">
+    <h3>🏆 Classement Live</h3>
+    <div id="live-scores-list"></div>
   </div>
 
   <div class="app-container">
@@ -521,6 +646,19 @@
         <div id="list-lobby-players" style="margin-top: 12px;"></div>
       </div>
 
+      <!-- Spectator Link -->
+      <div class="card" id="card-spectator-link" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1));">
+        <h3 style="font-size: 0.95rem;">📺 Mode Spectateur</h3>
+        <p style="font-size: 0.85rem; margin-bottom: 12px; color: var(--txt-muted);">
+          Partagez ce lien pour suivre la partie en direct sur un autre écran :
+        </p>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="inp-spectator-url" readonly style="flex: 1; font-size: 0.85rem; background: var(--bg-primary);" value="">
+          <button class="btn-secondary" id="btn-copy-spectator" style="white-space: nowrap;">📋 Copier</button>
+        </div>
+        <p id="msg-copy-success" class="hidden" style="text-align: center; margin-top: 8px; color: var(--success); font-size: 0.8rem;">✅ Lien copié !</p>
+      </div>
+
       <div style="text-align:center; margin-top:20px;">
         <p class="hidden" id="msg-lobby-autostart" style="font-size:0.8rem; color:var(--txt-muted);">La partie démarrera
           quand tout le monde sera prêt...</p>
@@ -581,10 +719,38 @@
       snapshot: null,
       myVotes: new Set(),
       hasSubmittedPrep: false,
-      isOffline: false
+      isOffline: false,
+      isSpectatorMode: false
     };
 
     const $ = (id) => document.getElementById(id);
+
+    /* --- AUTO-JOIN FROM URL --- */
+    function checkUrlAndAutoJoin() {
+      const path = window.location.pathname;
+
+      // Check for /spectate/:code
+      const spectateMatch = path.match(/^\/spectate\/([A-Z0-9]+)$/i);
+      if (spectateMatch) {
+        const code = spectateMatch[1].toUpperCase();
+        state.code = code;
+        state.playerId = null; // Spectator mode
+        state.isSpectatorMode = true;
+        startPolling();
+        return true;
+      }
+
+      // Check for /join/:code (legacy support)
+      const joinMatch = path.match(/^\/join\/([A-Z0-9]+)$/i);
+      if (joinMatch) {
+        const code = joinMatch[1].toUpperCase();
+        $('inp-code').value = code;
+        // Don't auto-join, just pre-fill the code
+        return true;
+      }
+
+      return false;
+    }
 
     const api = async (endpoint, method = 'GET', body = null) => {
       const headers = { 'Content-Type': 'application/json' };
@@ -767,10 +933,33 @@
 
       // Meta header
       const me = state.playerId ? s.players.find(p => p.id === state.playerId) : null;
-      $('sessionMeta').innerText = `Code: ${s.code} | ${me?.nickname || 'Spectateur'}`;
-
-      // View Router Logic
       const myGroup = s.groups.find(g => g.players.some(p => p.id === state.playerId));
+
+      // Build header with group badge
+      if (me && myGroup) {
+        const groupColorClass = `group-color-${((myGroup.idx - 1) % 6) + 1}`;
+        $('sessionMeta').innerHTML = `
+          <div class="group-badge ${groupColorClass}">
+            <span class="group-badge-icon">👥</span>
+            <span>Groupe ${myGroup.idx}</span>
+          </div>
+          <div class="session-info">Code: ${s.code} | ${me.nickname}</div>
+        `;
+      } else {
+        $('sessionMeta').innerHTML = `<div class="session-info">Code: ${s.code} | ${me?.nickname || 'Spectateur'}</div>`;
+      }
+
+      // View Router Logic (myGroup already defined above)
+
+      // Show live scoreboard for spectators during game, or hide it
+      const shouldShowLiveScores = (s.status === 'RUNNING_PHASE1' || s.status === 'RUNNING_PHASE2') &&
+                                    (!state.playerId || (myGroup && myGroup.status === 'DONE'));
+      if (shouldShowLiveScores) {
+        renderLiveScoreboard(s);
+        $('live-scoreboard').classList.remove('hidden');
+      } else {
+        $('live-scoreboard').classList.add('hidden');
+      }
 
       // 1. Lobby
       if (s.status === 'LOBBY' || s.status === 'RUNNING_PHASE1_PREP') {
@@ -813,7 +1002,9 @@
             switchView('reveal');
             renderReveal(s.lastReveal);
           } else {
-            $('sessionMeta').innerText += ' (En attente...)';
+            // Show scores view for spectators when no active round
+            switchView('scores');
+            renderScores(s);
           }
         } else {
           // If no active round (between rounds), check for lastReveal
@@ -841,12 +1032,28 @@
       $('lbl-lobby-code').innerText = s.code;
       $('lbl-lobby-players').innerText = `${s.players.length} Joueurs`;
 
+      // Update spectator link
+      updateSpectatorLink();
+
       const list = $('list-lobby-players');
       list.innerHTML = '';
       s.players.forEach(p => {
         const row = document.createElement('div');
         row.className = 'list-item';
-        row.innerHTML = `<span>${p.nickname}</span><span style="font-size:0.8em; opacity:0.6;">Grp ${getGroupIdx(s, p.groupId)}</span>`;
+
+        const groupIdx = getGroupIdx(s, p.groupId);
+        const groupColorClass = `group-color-${((groupIdx - 1) % 6) + 1}`;
+        const isMe = p.id === state.playerId;
+
+        row.innerHTML = `
+          <span style="display: flex; align-items: center; gap: 8px;">
+            ${p.nickname}
+            ${isMe ? '<span style="opacity: 0.6; font-size: 0.8em;">(vous)</span>' : ''}
+          </span>
+          <span class="group-badge ${groupColorClass}" style="font-size: 0.75rem; padding: 4px 10px;">
+            👥 Groupe ${groupIdx}
+          </span>
+        `;
         list.appendChild(row);
       });
     }
@@ -936,6 +1143,48 @@
       });
     }
 
+    function renderLiveScoreboard(s) {
+      const list = $('live-scores-list');
+      list.innerHTML = '';
+
+      if (!s.players || s.players.length === 0) {
+        list.innerHTML = '<p style="text-align:center; color:var(--txt-muted); font-size:0.85rem;">Aucun joueur</p>';
+        return;
+      }
+
+      // Sort players by total score
+      const sorted = [...s.players].sort((a, b) => {
+        const sa = s.scores[a.id]?.total || 0;
+        const sb = s.scores[b.id]?.total || 0;
+        return sb - sa;
+      });
+
+      sorted.forEach((p, idx) => {
+        const sc = s.scores[p.id] || { phase1: 0, phase2: 0, total: 0 };
+        const row = document.createElement('div');
+        row.className = 'score-row';
+        if (idx === 0 && sc.total > 0) row.classList.add('top');
+
+        row.innerHTML = `
+          <div class="player-info">
+            <span class="rank">#${idx + 1}</span>
+            <span class="nickname">${p.nickname}</span>
+          </div>
+          <span class="points">${sc.total}</span>
+        `;
+
+        // Add details if there are scores
+        if (sc.phase1 > 0 || sc.phase2 > 0) {
+          const details = document.createElement('div');
+          details.className = 'score-details';
+          details.innerHTML = `P1: ${sc.phase1} | P2: ${sc.phase2}`;
+          row.appendChild(details);
+        }
+
+        list.appendChild(row);
+      });
+    }
+
     function getGroupIdx(s, gid) {
       const g = s.groups.find(x => x.id === gid);
       try {
@@ -950,6 +1199,37 @@
       const grp = s.groups.find(g => g.players.some(p => p.id === state.playerId));
       return grp ? grp.currentRound : null;
     }
+
+    /* --- SPECTATOR LINK --- */
+    function updateSpectatorLink() {
+      if (!state.code) return;
+      const url = `${window.location.origin}/spectate/${state.code}`;
+      $('inp-spectator-url').value = url;
+    }
+
+    $('btn-copy-spectator').onclick = async () => {
+      const url = $('inp-spectator-url').value;
+      try {
+        await navigator.clipboard.writeText(url);
+        $('msg-copy-success').classList.remove('hidden');
+        setTimeout(() => {
+          $('msg-copy-success').classList.add('hidden');
+        }, 2000);
+      } catch (e) {
+        // Fallback for older browsers
+        $('inp-spectator-url').select();
+        document.execCommand('copy');
+        $('msg-copy-success').classList.remove('hidden');
+        setTimeout(() => {
+          $('msg-copy-success').classList.add('hidden');
+        }, 2000);
+      }
+    };
+
+    /* --- INIT ON PAGE LOAD --- */
+    window.addEventListener('DOMContentLoaded', () => {
+      checkUrlAndAutoJoin();
+    });
 
   </script>
 </body>

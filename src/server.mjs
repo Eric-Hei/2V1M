@@ -220,6 +220,14 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, { ok: true });
     }
 
+    // Serve index.html for all non-API GET requests (client-side routing)
+    if (req.method === 'GET' && !urlPath.startsWith('/api/')) {
+      const indexPath = path.resolve(process.cwd(), 'public', 'index.html');
+      const html = fs.readFileSync(indexPath, 'utf8');
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+      return res.end(html);
+    }
+
     return notFound(res);
   } catch (error) {
     const status = error.status || 500;

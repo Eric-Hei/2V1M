@@ -5,6 +5,7 @@ Implémentation MVP jouable localement:
 - moteur de jeu (Phase 1 + Phase 2)
 - interface web minimale
 - mises à jour temps réel via SSE
+- **mode spectateur** avec tableau de scores live
 
 ## Lancer
 
@@ -21,6 +22,22 @@ Puis ouvrir [http://localhost:3000](http://localhost:3000).
 npm test
 ```
 
+## Mode Spectateur 📺
+
+Pour suivre une partie en direct sur un autre écran :
+
+1. **Créer une partie** et noter le code (ex: `RLXTW`)
+2. **Copier le lien spectateur** depuis le lobby (bouton "📋 Copier")
+3. **Ouvrir le lien** sur un autre appareil : `http://localhost:3000/spectate/RLXTW`
+
+Le mode spectateur affiche :
+- ✅ Tableau de scores en temps réel
+- ✅ Suivi automatique des manches actives
+- ✅ Mises à jour live (polling 1s)
+- ✅ Pas de contrôles joueur
+
+**Cas d'usage** : projection sur grand écran, streaming, suivi à distance
+
 ## Endpoints API
 
 - `POST /api/v1/parties` (body supporte aussi `phaseTimeLimitSec`)
@@ -35,6 +52,12 @@ npm test
 - `POST /api/v1/rounds/{roundId}/vote` (header `x-player-id` = votant)
 - `POST /api/v1/rounds/{roundId}/close` (header `x-player-id` = host)
 - `GET /api/v1/events/{code}` (SSE temps réel)
+
+## Routes Web
+
+- `GET /` - Page d'accueil
+- `GET /spectate/:code` - Mode spectateur pour une partie
+- `GET /join/:code` - Pré-remplissage du code de partie (legacy)
 
 ## Notes techniques
 

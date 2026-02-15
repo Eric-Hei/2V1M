@@ -48,7 +48,13 @@ export class GameStore {
     this.votes = new Map();
   }
 
-  createParty({ code = null, groups = 0, roundTimerSec = 120, phaseTimeLimitSec = 600, statementTimeLimitSec = 120 } = {}) {
+  createParty({ code: customCode = null, groups: groupsParam, roundTimerSec: roundTimerSecParam, phaseTimeLimitSec: phaseTimeLimitSecParam, statementTimeLimitSec: statementTimeLimitSecParam } = {}) {
+    // Apply defaults
+    const groups = groupsParam ?? 0;
+    const roundTimerSec = roundTimerSecParam ?? 120;
+    const phaseTimeLimitSec = phaseTimeLimitSecParam ?? 600;
+    const statementTimeLimitSec = statementTimeLimitSecParam ?? 120;
+
     if (!Number.isInteger(groups) || groups < 0 || groups > 20) {
       throw badRequest('groups must be an integer between 0 and 20');
     }
@@ -63,8 +69,8 @@ export class GameStore {
     }
 
     let partyCode;
-    if (code) {
-      const requestedCode = code.toUpperCase().trim();
+    if (customCode) {
+      const requestedCode = customCode.toUpperCase().trim();
       if (!/^[A-Z0-9]{3,9}$/.test(requestedCode)) {
         throw badRequest('Custom code must be 3-9 alphanumeric characters');
       }
