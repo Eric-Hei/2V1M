@@ -1,5 +1,9 @@
 # 2V1M — V3 Spécification Technique (MVP exécutable)
 
+> **Statut** : MVP Fonctionnel ✅
+> **Dernière mise à jour** : 2026-02-15
+> **Version** : 0.1.0
+
 ## 1. Objectif de ce document
 Traduire la PRD produit en spécification technique directement implémentable:
 - API HTTP + WebSocket
@@ -8,20 +12,60 @@ Traduire la PRD produit en spécification technique directement implémentable:
 - Flux front
 - Backlog de livraison
 
-## 2. Périmètre MVP confirmé
-- Création/rejoindre partie sans compte
-- Multi-groupes dans une même partie
-- Phase 1 complète (manches, votes, scoring, classements)
-- Distinction meilleur menteur par groupe
-- Phase 2 (Cour des Menteurs) avec restrictions d’éligibilité
-- Score final consolidé et gestion des ex aequo
-- **Mode spectateur** avec URL dédiée et tableau de scores live
-- **Indicateurs visuels de groupe** avec badges colorés pour identification rapide
+### État d'Implémentation
 
-Hors MVP:
-- Historique long terme
-- Profils utilisateurs
-- Modération avancée
+| Fonctionnalité | Statut | Notes |
+|----------------|--------|-------|
+| Création/Rejoindre partie | ✅ Implémenté | Sans compte, code à 5 caractères |
+| Multi-groupes | ✅ Implémenté | Assignation manuelle dans lobby |
+| Phase 1 complète | ✅ Implémenté | Manches, votes, scoring |
+| Phase 2 (Cour des Menteurs) | ✅ Implémenté | Avec restrictions d'éligibilité |
+| Scoring & Classements | ✅ Implémenté | Phase 1 + Phase 2 + Total |
+| Mode Spectateur | ✅ Implémenté | URL dédiée + tableau scores live |
+| Badges de Groupe | ✅ Implémenté | 6 couleurs distinctives |
+| Temps Réel | ✅ Implémenté | Polling 1s + SSE disponible |
+| Base de données | ❌ Hors MVP | Stockage en mémoire |
+| Comptes utilisateurs | ❌ Hors MVP | Jeu instantané |
+| Historique parties | ❌ Hors MVP | Pas de persistance |
+
+## 2. Périmètre MVP confirmé
+
+### ✅ Fonctionnalités Implémentées
+
+#### Core Gameplay
+- ✅ Création/rejoindre partie sans compte
+- ✅ Multi-groupes dans une même partie
+- ✅ Phase 1 complète (manches, votes, scoring, classements)
+- ✅ Distinction meilleur menteur par groupe
+- ✅ Phase 2 (Cour des Menteurs) avec restrictions d’éligibilité
+- ✅ Score final consolidé et gestion des ex aequo
+- ✅ Démarrage automatique quand tous les énoncés sont soumis
+- ✅ Timers configurables (manches, phases, saisie énoncés)
+
+#### UX & Interface
+- ✅ **Mode spectateur** avec URL dédiée et tableau de scores live
+- ✅ **Indicateurs visuels de groupe** avec badges colorés (6 couleurs)
+- ✅ Interface mobile-first responsive
+- ✅ Mises à jour temps réel (polling 1s)
+- ✅ Partage facile du lien spectateur (bouton copier)
+- ✅ Indicateur "(vous)" dans le lobby
+
+#### Technique
+- ✅ API HTTP REST complète
+- ✅ SSE pour événements temps réel
+- ✅ Stockage en mémoire (GameStore)
+- ✅ Routing côté client (/spectate/:code, /join/:code)
+- ✅ Gestion des déconnexions/reconnexions
+
+### ❌ Hors MVP
+- Historique long terme / persistance
+- Profils utilisateurs / comptes
+- Modération avancée / signalement
+- Base de données (PostgreSQL/Redis)
+- Authentification JWT
+- Statistiques détaillées
+- Replay de parties
+- Personnalisation (thèmes, avatars)
 
 ## 3. Architecture cible
 - Frontend: SPA mobile-first (React/Next ou équivalent)
@@ -370,3 +414,92 @@ GET /join/:code -> index.html (legacy support)
 - 0 bug bloquant sur workflow complet
 - Temps création partie médian < 30 s
 - Taux de complétion en test pilot >= 70%
+
+---
+
+## 19. Changelog
+
+### Version 0.1.0 (2026-02-15) - MVP Fonctionnel ✅
+
+#### 🎉 Nouvelles Fonctionnalités
+
+**Mode Spectateur** (Section 13)
+- URL dédiée `/spectate/:code` pour accès direct
+- Tableau de scores live avec classement en temps réel
+- Détails des scores : Phase 1, Phase 2, Total
+- Bouton de copie du lien spectateur dans le lobby
+- Routing côté client avec détection automatique
+- Polling 1s pour mises à jour automatiques
+- UI adaptée : scoreboard flottant (desktop) / intégré (mobile)
+
+**Badges de Groupe Colorés** (Section 14)
+- Badge permanent en haut à droite de l'écran
+- 6 couleurs distinctives avec gradients
+- Affichage dans le lobby avec badges pour tous les joueurs
+- Indicateur "(vous)" pour identification rapide
+- Classes CSS `.group-color-1` à `.group-color-6`
+- Responsive et accessible (contraste élevé)
+
+#### 🐛 Corrections de Bugs
+
+**Création de Partie**
+- Fix : Erreur 500 lors de création avec paramètres manquants
+- Fix : Conflit de nom de variable `code` vs fonction `code()`
+- Solution : Utilisation de `??` pour valeurs par défaut + renommage paramètres
+
+**Routing**
+- Ajout : Route catch-all pour servir `index.html` sur routes non-API
+- Support : Client-side routing pour `/spectate/:code` et `/join/:code`
+
+#### 📝 Documentation
+
+**Nouveaux Documents**
+- `SPECTATOR_MODE.md` : Guide complet du mode spectateur
+- `GROUP_BADGES.md` : Documentation des indicateurs visuels
+- `test-spectator.sh` : Script de test automatisé
+
+**Mises à Jour**
+- `README.md` : Refonte user-friendly avec emojis et structure claire
+- `prd_2_v_3_spec_technique.md` : Ajout sections 13-14 + tableau d'état
+- Ajout de ce changelog
+
+#### 🔧 Améliorations Techniques
+
+**Architecture**
+- Stockage en mémoire via `GameStore` (pas de DB pour MVP)
+- Auth simplifiée via header `x-player-id`
+- Scoring et règles métier côté serveur
+- Polling 1s + SSE disponible pour temps réel
+
+**UX/UI**
+- Interface mobile-first responsive
+- Mises à jour automatiques toutes les secondes
+- Synchronisation multi-appareils
+- Indicateurs visuels clairs (groupes, spectateur, etc.)
+
+#### 📊 Métriques MVP
+
+- ✅ Création de partie fonctionnelle
+- ✅ Multi-groupes opérationnel
+- ✅ Phase 1 & Phase 2 complètes
+- ✅ Mode spectateur testé
+- ✅ Badges de groupe validés
+- ✅ 0 bug bloquant identifié
+
+### Prochaines Étapes
+
+**Post-MVP (Backlog)**
+- [ ] Persistance avec PostgreSQL
+- [ ] Cache Redis pour présence temps réel
+- [ ] Authentification JWT
+- [ ] Historique des parties
+- [ ] Statistiques détaillées
+- [ ] Mode replay
+- [ ] Personnalisation (thèmes, avatars)
+- [ ] Modération avancée
+
+**Déploiement**
+- [ ] Configuration Netlify
+- [ ] Tests de charge
+- [ ] Monitoring et observabilité
+- [ ] Documentation API (Swagger/OpenAPI)

@@ -1,75 +1,195 @@
-# 2V1M MVP
+# 🎭 2V1M - Deux Vérités et un Mensonge
 
-Implémentation MVP jouable localement:
-- API HTTP
-- moteur de jeu (Phase 1 + Phase 2)
-- interface web minimale
-- mises à jour temps réel via SSE
-- **mode spectateur** avec tableau de scores live
+> Un jeu d'ice breaker rapide et engageant pour briser la glace en 5-12 minutes !
 
-## Lancer
+## 🎮 Qu'est-ce que 2V1M ?
+
+**2V1M** est un jeu social où les joueurs doivent deviner quel énoncé est un mensonge parmi trois propositions. Parfait pour :
+- 🏢 Team building et événements d'entreprise
+- 🎉 Soirées entre amis
+- 🎓 Activités de groupe et formations
+- 💻 Réunions virtuelles ou hybrides
+
+### Comment jouer ?
+
+1. **Un hôte crée une partie** et partage le code
+2. **Les joueurs rejoignent** avec un simple pseudo (pas de compte requis)
+3. **Chaque joueur propose** 2 vérités + 1 mensonge
+4. **Les autres votent** pour identifier le mensonge
+5. **Des points sont attribués** selon la justesse et la rapidité
+6. **Le meilleur menteur gagne** ! 🏆
+
+## 🚀 Démarrage Rapide
+
+### Installation
 
 ```bash
-cd /Users/erich/Documents/New\ project
+npm install
+```
+
+### Lancer le serveur
+
+```bash
 npm start
 ```
 
-Puis ouvrir [http://localhost:3000](http://localhost:3000).
+Le jeu sera accessible sur **[http://localhost:3000](http://localhost:3000)** 🎯
 
-## Tester
+### Tester
 
 ```bash
 npm test
 ```
 
-## Mode Spectateur 📺
+## ✨ Fonctionnalités Principales
 
-Pour suivre une partie en direct sur un autre écran :
+### 🎯 Deux Phases de Jeu
+
+#### Phase 1 : Manches par Groupe
+- Les joueurs sont répartis en groupes
+- Chaque groupe joue ses manches indépendamment
+- Chacun son tour devient narrateur et propose ses énoncés
+- Les autres membres du groupe votent
+
+#### Phase 2 : La Cour des Menteurs
+- Les meilleurs menteurs de chaque groupe s'affrontent
+- Multiplicateur de points pour plus de suspense
+- Restrictions : on ne peut pas voter pour quelqu'un de son groupe Phase 1
+
+### � Badges de Groupe Colorés
+
+Chaque joueur voit clairement son groupe grâce à :
+- **Badge permanent** en haut à droite de l'écran
+- **6 couleurs distinctives** pour différencier les groupes
+- **Affichage dans le lobby** avec badges colorés pour tous les joueurs
+
+### 📺 Mode Spectateur
+
+Suivez une partie en direct sur un autre écran :
 
 1. **Créer une partie** et noter le code (ex: `RLXTW`)
 2. **Copier le lien spectateur** depuis le lobby (bouton "📋 Copier")
 3. **Ouvrir le lien** sur un autre appareil : `http://localhost:3000/spectate/RLXTW`
 
-Le mode spectateur affiche :
-- ✅ Tableau de scores en temps réel
-- ✅ Suivi automatique des manches actives
-- ✅ Mises à jour live (polling 1s)
-- ✅ Pas de contrôles joueur
+**Idéal pour** :
+- 📽️ Projection sur grand écran lors d'événements
+- 🎥 Streaming pour audiences externes
+- 👀 Suivi à distance pour organisateurs
+- 🖥️ Multi-écrans pour grandes parties
 
-**Cas d'usage** : projection sur grand écran, streaming, suivi à distance
+### ⚡ Temps Réel
 
-## Endpoints API
+- Mises à jour automatiques toutes les secondes
+- Tableau de scores live
+- Synchronisation automatique entre tous les appareils
 
-- `POST /api/v1/parties` (body supporte aussi `phaseTimeLimitSec`)
-- `GET /api/v1/parties/{code}`
-- `POST /api/v1/parties/{code}/join`
-- `POST /api/v1/parties/{code}/statements` (saisie simultanée des 2 vérités + 1 mensonge en début de phase 1)
-- `DELETE /api/v1/parties/{code}/players/{playerId}` (suppression participant, ouverte à tous en lobby)
-- `POST /api/v1/parties/{code}/players/{playerId}/remove` (fallback suppression si `DELETE` non supporté)
-- `POST /api/v1/parties/{code}/start-phase1` (header `x-player-id` = participant)
-- `POST /api/v1/parties/{code}/start-phase2` (header `x-player-id` = participant)
-- `POST /api/v1/rounds/{roundId}/statements` (header `x-player-id` = narrator)
-- `POST /api/v1/rounds/{roundId}/vote` (header `x-player-id` = votant)
-- `POST /api/v1/rounds/{roundId}/close` (header `x-player-id` = host)
-- `GET /api/v1/events/{code}` (SSE temps réel)
+## 📚 Documentation
 
-## Routes Web
+- **[PRD & Spécifications Techniques](prd_2_v_3_spec_technique.md)** - Document de référence complet
+- **[Mode Spectateur](SPECTATOR_MODE.md)** - Guide détaillé du mode spectateur
+- **[Badges de Groupe](GROUP_BADGES.md)** - Documentation des indicateurs visuels
 
-- `GET /` - Page d'accueil
-- `GET /spectate/:code` - Mode spectateur pour une partie
-- `GET /join/:code` - Pré-remplissage du code de partie (legacy)
+## 🛠️ Architecture Technique
 
-## Notes techniques
+### Stack
+- **Backend** : Node.js avec API HTTP + SSE
+- **Frontend** : HTML/CSS/JS vanilla (mobile-first)
+- **Stockage** : En mémoire (pas de base de données pour le MVP)
+- **Temps réel** : Polling 1s + SSE disponible
 
-- Stockage en mémoire (pas Postgres/Redis dans cette itération)
-- Auth simplifiée via `x-player-id`
-- Le scoring et les règles métier sont calculés côté serveur
-- Fin de phase automatique: `all_played` ou `time_limit`, résultat disponible dans `snapshot.phaseResults`
-- Résultat de phase enrichi: gagnant(s) avec points + meilleur temps de détection, et liste des joueurs qui se sont trompés
-- Une partie peut démarrer à partir de 2 joueurs par groupe
-- Toute personne déjà dans la partie peut démarrer la phase 2
-- Phase 1 démarre automatiquement depuis le lobby quand tous les joueurs présents (min 2) ont soumis leurs énoncés
-- Phase 2 n'est disponible que pour les parties avec au moins 2 groupes
-- En lobby, chaque joueur rejoint un groupe existant (via `groupIndex`) ou crée un nouveau groupe (`createGroup=true`)
-- Toute personne déjà dans la partie peut aussi forcer la fin de manche (action de modération légère)
-- Nouveau flux phase 1: après démarrage, tous les joueurs écrivent en parallèle leurs 2 vérités + 1 mensonge; les manches de vote commencent ensuite automatiquement quand tout le monde a soumis (ou à la fin du timer de saisie)
+### Routes Web
+
+| Route | Description |
+|-------|-------------|
+| `GET /` | Page d'accueil |
+| `GET /spectate/:code` | Mode spectateur pour une partie |
+| `GET /join/:code` | Pré-remplissage du code de partie |
+
+### API Endpoints Principaux
+
+<details>
+<summary>Voir tous les endpoints</summary>
+
+#### Gestion des Parties
+- `POST /api/v1/parties` - Créer une partie
+- `GET /api/v1/parties/{code}` - Obtenir l'état d'une partie
+- `POST /api/v1/parties/{code}/join` - Rejoindre une partie
+- `POST /api/v1/parties/{code}/start-phase1` - Démarrer la Phase 1
+- `POST /api/v1/parties/{code}/start-phase2` - Démarrer la Phase 2
+
+#### Gestion des Joueurs
+- `DELETE /api/v1/parties/{code}/players/{playerId}` - Supprimer un joueur
+- `POST /api/v1/parties/{code}/players/{playerId}/remove` - Fallback suppression
+
+#### Gestion des Manches
+- `POST /api/v1/parties/{code}/statements` - Soumettre ses énoncés (Phase 1)
+- `POST /api/v1/rounds/{roundId}/statements` - Soumettre énoncés (narrateur)
+- `POST /api/v1/rounds/{roundId}/vote` - Voter pour un énoncé
+- `POST /api/v1/rounds/{roundId}/close` - Forcer la fin d'une manche
+
+#### Temps Réel
+- `GET /api/v1/events/{code}` - SSE pour mises à jour temps réel
+
+</details>
+
+## 🎯 Règles du Jeu
+
+### Démarrage
+- **Minimum** : 2 joueurs par groupe
+- **Groupes** : Assignation manuelle dans le lobby
+- **Démarrage automatique** : Quand tous les joueurs ont soumis leurs énoncés
+
+### Scoring Phase 1
+- Vote correct rapide = plus de points
+- Classement par vitesse de détection
+- Le meilleur menteur = celui qui a fait le moins de points aux autres
+
+### Scoring Phase 2
+- Multiplicateur x2 par défaut
+- Seuls les meilleurs menteurs de chaque groupe participent
+- Restriction : pas de vote pour quelqu'un de son groupe Phase 1
+
+### Fin de Partie
+- Classement final basé sur le score total (Phase 1 + Phase 2)
+- Gestion des ex-aequo
+
+## 🔧 Configuration
+
+Le serveur peut être configuré via les paramètres de création de partie :
+
+```javascript
+{
+  "groups": 3,                    // Nombre de groupes (0 = auto)
+  "roundTimerSec": 120,           // Timer par manche (défaut: 120s)
+  "phaseTimeLimitSec": 600,       // Limite de temps par phase (défaut: 600s)
+  "statementTimeLimitSec": 120    // Temps pour écrire les énoncés (défaut: 120s)
+}
+```
+
+## 🚀 Déploiement
+
+Le projet est conçu pour être déployé sur **Netlify** via `netlify-cli`.
+
+```bash
+# Installation de Netlify CLI
+npm install -g netlify-cli
+
+# Déploiement
+netlify deploy --prod
+```
+
+## 📝 Notes Techniques
+
+- **Stockage en mémoire** : Les parties sont perdues au redémarrage du serveur
+- **Auth simplifiée** : Via header `x-player-id` (pas de JWT pour le MVP)
+- **Scoring côté serveur** : Toute la logique métier est calculée côté serveur
+- **Modération légère** : Tout participant peut forcer la fin d'une manche
+- **Pas de compte requis** : Jeu instantané avec juste un pseudo
+
+## 🤝 Contribution
+
+Ce projet est un MVP. Les contributions sont les bienvenues !
+
+## 📄 Licence
+
+MIT
