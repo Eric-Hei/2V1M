@@ -5,6 +5,30 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.1.1] - 2026-02-15
+
+### 📝 Clarifié
+
+#### Concept du Jeu
+- **IMPORTANT** : Le gagnant est **l'enquêteur le plus perspicace**, pas le meilleur menteur
+- Les points sont gagnés en **détectant les mensonges**, pas en mentant
+- Le "meilleur menteur" est sélectionné uniquement pour participer à la Phase 2
+- Ajout du document `CONCEPT.md` pour expliquer clairement le système de victoire
+
+#### Documentation Mise à Jour
+- `README.md` : Clarification "L'enquêteur le plus perspicace gagne"
+- `prd_2_v_3_spec_technique.md` : Ajout section "Concept du Jeu" + clarifications scoring
+- Toutes les références au "gagnant" corrigées pour refléter le bon concept
+
+### 🔧 Amélioré
+
+#### README.md
+- Ajout de la phase d'interrogation dans "Comment jouer ?"
+- Clarification du système de scoring (gagner = détecter, pas mentir)
+- Ajout du lien vers `CONCEPT.md` dans la documentation
+
+---
+
 ## [0.1.0] - 2026-02-15
 
 ### 🎉 Ajouté

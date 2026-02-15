@@ -4,6 +4,23 @@
 > **Dernière mise à jour** : 2026-02-15
 > **Version** : 0.1.0
 
+## 🎯 Concept du Jeu
+
+**2V1M** (Deux Vérités et un Mensonge) est un jeu d'ice breaker où les joueurs gagnent des points en **détectant les mensonges** des autres.
+
+### Principe de Victoire
+- **Le gagnant** : Le joueur avec le **score total le plus élevé**
+- **Comment gagner** : Être **perspicace** et détecter correctement les mensonges
+- **Points** : Gagnés en votant correctement + bonus vitesse
+- **Meilleur menteur** : Sélectionné pour Phase 2, mais ce n'est PAS le gagnant final
+
+### Déroulement
+1. Chaque joueur propose 2 vérités + 1 mensonge
+2. Les autres **interrogent librement** le narrateur
+3. Dès qu'ils pensent avoir trouvé, ils **votent**
+4. Points attribués selon justesse + rapidité
+5. **L'enquêteur le plus perspicace gagne** ! 🏆
+
 ## 1. Objectif de ce document
 Traduire la PRD produit en spécification technique directement implémentable:
 - API HTTP + WebSocket
@@ -244,19 +261,22 @@ Client -> server:
 - Pour le i-ème correct (`i` commence à 1): `points = V - i + 1`
 - Incorrect/absent = `0`
 
-### 8.2 Meilleur menteur
+### 8.2 Meilleur menteur (pour Phase 2)
 Pour chaque narrateur:
 - `LeakScore = sum(points des autres sur la manche)`
 - Min `LeakScore` = meilleur menteur du groupe (ex aequo possible)
+- **Note** : Le meilleur menteur est sélectionné uniquement pour participer à la Phase 2, ce n'est PAS le gagnant final
 
 ### 8.3 Phase 2
 - `V2 = nb votants éligibles`
 - `M = party.phase2_multiplier` (default 2)
 - i-ème vote correct: `points = (V2 - i + 1) * M`
 
-### 8.4 Consolidation
+### 8.4 Consolidation et Gagnant Final
 - `scores.total = scores.phase1 + scores.phase2`
-- Co-gagnants si égalité sur `total`.
+- **Le gagnant est le joueur avec le score total le plus élevé** (meilleur enquêteur/détective)
+- Les points sont gagnés en **détectant correctement les mensonges** (pas en mentant)
+- Co-gagnants si égalité sur `total`
 
 ## 9. Règles d’éligibilité Phase 2
 Un joueur `P` ne peut pas voter pour narrateur `N` en Phase 2 si:

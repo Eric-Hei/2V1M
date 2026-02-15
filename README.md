@@ -50,12 +50,14 @@ npm test
 - Les joueurs sont répartis en groupes
 - Chaque groupe joue ses manches indépendamment
 - Chacun son tour devient narrateur et propose ses énoncés
-- Les autres membres du groupe votent
+- Les autres membres du groupe **interrogent librement** puis **votent**
+- **Points gagnés** en détectant correctement les mensonges
 
 #### Phase 2 : La Cour des Menteurs
 - Les meilleurs menteurs de chaque groupe s'affrontent
 - Multiplicateur de points pour plus de suspense
 - Restrictions : on ne peut pas voter pour quelqu'un de son groupe Phase 1
+- **Objectif** : Continuer à gagner des points en étant perspicace
 
 ### � Badges de Groupe Colorés
 
@@ -86,9 +88,11 @@ Suivez une partie en direct sur un autre écran :
 
 ## 📚 Documentation
 
+- **[Concept du Jeu](CONCEPT.md)** - 🎯 Comprendre comment gagner et le système de scoring
 - **[PRD & Spécifications Techniques](prd_2_v_3_spec_technique.md)** - Document de référence complet
 - **[Mode Spectateur](SPECTATOR_MODE.md)** - Guide détaillé du mode spectateur
 - **[Badges de Groupe](GROUP_BADGES.md)** - Documentation des indicateurs visuels
+- **[Changelog](CHANGELOG.md)** - Historique des versions et modifications
 
 ## 🛠️ Architecture Technique
 
@@ -141,18 +145,21 @@ Suivez une partie en direct sur un autre écran :
 - **Démarrage automatique** : Quand tous les joueurs ont soumis leurs énoncés
 
 ### Scoring Phase 1
-- Vote correct rapide = plus de points
-- Classement par vitesse de détection
-- Le meilleur menteur = celui qui a fait le moins de points aux autres
+- **Gagner des points** : Détecter correctement le mensonge
+- **Bonus vitesse** : Vote correct rapide = plus de points
+- **Classement** : Par vitesse de détection
+- **Meilleur menteur** : Celui qui a fait perdre le moins de points aux autres (sélectionné pour Phase 2)
 
 ### Scoring Phase 2
-- Multiplicateur x2 par défaut
-- Seuls les meilleurs menteurs de chaque groupe participent
-- Restriction : pas de vote pour quelqu'un de son groupe Phase 1
+- **Multiplicateur x2** par défaut pour tous les votes
+- **Participants** : Seuls les meilleurs menteurs de chaque groupe
+- **Restriction** : Pas de vote pour quelqu'un de son groupe Phase 1
+- **Objectif** : Continuer à gagner des points en détectant les mensonges
 
 ### Fin de Partie
-- Classement final basé sur le score total (Phase 1 + Phase 2)
-- Gestion des ex-aequo
+- **Le gagnant** : Joueur avec le **score total le plus élevé** (Phase 1 + Phase 2)
+- **Victoire** : L'enquêteur le plus perspicace qui a détecté le plus de mensonges
+- **Ex-aequo** : Gestion des égalités de score
 
 ## 🔧 Configuration
 
