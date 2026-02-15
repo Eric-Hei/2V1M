@@ -4,7 +4,7 @@
 
 ## 🎮 Qu'est-ce que 2V1M ?
 
-**2V1M** est un jeu social où les joueurs doivent deviner quel énoncé est un mensonge parmi trois propositions. Parfait pour :
+**2V1M** est un jeu icebreaker où les joueurs doivent deviner quel énoncé est un mensonge parmi trois propositions. Parfait pour :
 - 🏢 Team building et événements d'entreprise
 - 🎉 Soirées entre amis
 - 🎓 Activités de groupe et formations
@@ -15,9 +15,10 @@
 1. **Un hôte crée une partie** et partage le code
 2. **Les joueurs rejoignent** avec un simple pseudo (pas de compte requis)
 3. **Chaque joueur propose** 2 vérités + 1 mensonge
-4. **Les autres votent** pour identifier le mensonge
-5. **Des points sont attribués** selon la justesse et la rapidité
-6. **Le meilleur menteur gagne** ! 🏆
+4. **Les joueurs interrogent librement** le narrateur 
+5. **Dès qu'ils pensent avoir trouvé le mensonge** ils votent
+6. **Des points sont attribués** selon la justesse et la rapidité
+7. **Le meilleur menteur gagne** ! 🏆
 
 ## 🚀 Démarrage Rapide
 
