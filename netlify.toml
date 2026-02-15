@@ -1,0 +1,38 @@
+[build]
+  # Commande de build (rien à builder pour ce projet)
+  command = "echo 'No build needed'"
+  # Dossier à publier (fichiers statiques)
+  publish = "public"
+  # Fonction serverless
+  functions = "netlify/functions"
+
+# Redirection pour le serveur Node.js
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/server/:splat"
+  status = 200
+
+# Redirection pour le mode spectateur (client-side routing)
+[[redirects]]
+  from = "/spectate/*"
+  to = "/index.html"
+  status = 200
+
+# Redirection pour join (client-side routing)
+[[redirects]]
+  from = "/join/*"
+  to = "/index.html"
+  status = 200
+
+# Redirection par défaut
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[dev]
+  # Port de développement local
+  port = 3000
+  # Commande pour démarrer le serveur local
+  command = "npm start"
+

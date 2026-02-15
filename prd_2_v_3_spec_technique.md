@@ -437,7 +437,66 @@ GET /join/:code -> index.html (legacy support)
 
 ---
 
-## 19. Changelog
+## 19. Déploiement et Infrastructure
+
+### 19.1 Déploiement Netlify
+
+**URL Production** : https://2v1m.netlify.app
+
+**Configuration** :
+- Build : Aucun (fichiers statiques)
+- Publish directory : `public/`
+- Functions directory : `netlify/functions/`
+- Redirections : Configurées dans `netlify.toml`
+
+### 19.2 Stockage
+
+#### Actuellement : En Mémoire (MVP)
+- Maps JavaScript dans `GameStore`
+- ✅ Parfait pour développement local
+- ⚠️ Problème sur Netlify (instances Lambda isolées)
+
+#### Recommandé : Redis Upstash
+- Partage d'état entre instances Lambda
+- Persistance des parties
+- Performance < 5ms
+- Gratuit jusqu'à 10,000 req/jour
+
+**Configuration** :
+```env
+UPSTASH_REDIS_REST_URL="https://..."
+UPSTASH_REDIS_REST_TOKEN="..."
+```
+
+**Documentation** : Voir `DEPLOY_NETLIFY.md`
+
+### 19.3 Variables d'Environnement
+
+#### Local (`.env`)
+```env
+UPSTASH_REDIS_REST_URL="..."
+UPSTASH_REDIS_REST_TOKEN="..."
+```
+
+#### Netlify
+Configurer via :
+- CLI : `netlify env:set KEY "value"`
+- Interface : Site settings → Environment variables
+
+## 20. Changelog
+
+### Version 0.1.1 (2026-02-15)
+
+**Infrastructure** :
+- ✅ Déploiement Netlify configuré
+- ✅ Fonction serverless créée
+- ✅ Redis Upstash intégré (préparation)
+- ✅ Variables d'environnement configurées
+- ✅ Documentation déploiement (`DEPLOY_NETLIFY.md`)
+
+**Sécurité** :
+- ✅ `.gitignore` mis à jour (`.env`, secrets)
+- ✅ Credentials Redis sécurisés
 
 ### Version 0.1.0 (2026-02-15) - MVP Fonctionnel ✅
 

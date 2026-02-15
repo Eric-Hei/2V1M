@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
@@ -56,12 +57,12 @@ function routeKey(method, pathname) {
   return `${method} ${pathname}`;
 }
 
-function snapshotForRound(roundId) {
+async function snapshotForRound(roundId) {
   const round = store.rounds.get(roundId);
   if (!round) return null;
   const party = store.partiesById.get(round.partyId);
   if (!party) return null;
-  return store.getPartySnapshot(party.code);
+  return await store.getPartySnapshot(party.code);
 }
 
 const server = http.createServer(async (req, res) => {
@@ -79,7 +80,7 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'GET' && urlPath.match(/^\/api\/v1\/events\/[^/]+$/)) {
       const code = urlPath.split('/')[4].toUpperCase();
-      if (!store.getPartyByCode(code)) {
+      if (!(await store.getPartyByCode(code))) {
         return send(res, 404, { error: { code: 'PARTY_NOT_FOUND', message: 'party not found' } });
       }
 
@@ -93,7 +94,7 @@ const server = http.createServer(async (req, res) => {
       if (!sseByCode.has(code)) sseByCode.set(code, new Set());
       sseByCode.get(code).add(res);
 
-      const snapshot = store.getPartySnapshot(code);
+      const snapshot = await store.getPartySnapshot(code);
       sendEvent(res, 'party.snapshot', { snapshot });
 
       req.on('close', () => {
@@ -106,7 +107,7 @@ const server = http.createServer(async (req, res) => {
 
     if (routeKey(req.method, urlPath) === 'POST /api/v1/parties') {
       const body = await readBody(req);
-      const out = store.createParty(body);
+      const out = await store.createParty(body);
       return send(res, 201, out);
     }
 
@@ -120,7 +121,7 @@ const server = http.createServer(async (req, res) => {
     ) {
       const code = parts[3].toUpperCase();
       const playerId = parts[5];
-      const snapshot = store.removePlayer(code, playerId);
+      const snapshot = await store.removePlayer(code, playerId);
       broadcast(code, 'party.updated', { snapshot });
       return send(res, 200, { ok: true, snapshot });
     }
@@ -136,14 +137,14 @@ const server = http.createServer(async (req, res) => {
     ) {
       const code = parts[3].toUpperCase();
       const playerId = parts[5];
-      const snapshot = store.removePlayer(code, playerId);
+      const snapshot = await store.removePlayer(code, playerId);
       broadcast(code, 'party.updated', { snapshot });
       return send(res, 200, { ok: true, snapshot });
     }
 
     if (req.method === 'GET' && urlPath.startsWith('/api/v1/parties/')) {
       const code = urlPath.split('/').at(-1);
-      const snapshot = store.getPartySnapshot(code);
+      const snapshot = await store.getPartySnapshot(code);
       if (!snapshot) return send(res, 404, { error: { code: 'PARTY_NOT_FOUND', message: 'party not found' } });
       return send(res, 200, snapshot);
     }
@@ -151,12 +152,12 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && urlPath.match(/^\/api\/v1\/parties\/[^/]+\/join$/)) {
       const code = urlPath.split('/')[4].toUpperCase();
       const body = await readBody(req);
-      const out = store.joinParty(code, body.nickname, {
+      const out = await store.joinParty(code, body.nickname, {
         groupId: body.groupId ?? null,
         groupIndex: Number.isInteger(body.groupIndex) ? body.groupIndex : (body.groupIndex ? Number(body.groupIndex) : null),
         createGroup: !!body.createGroup,
       });
-      broadcast(code, 'party.updated', { snapshot: store.getPartySnapshot(code) });
+      broadcast(code, 'party.updated', { snapshot: await store.getPartySnapshot(code) });
       return send(res, 201, out);
     }
 
@@ -164,7 +165,7 @@ const server = http.createServer(async (req, res) => {
       const code = urlPath.split('/')[4].toUpperCase();
       const body = await readBody(req);
       const actorId = getActorId(req) || body.playerId || url.searchParams.get('playerId');
-      const snapshot = store.submitPhase1Statements(code, actorId, body.items);
+      const snapshot = await store.submitPhase1Statements(code, actorId, body.items);
       broadcast(code, 'party.updated', { snapshot });
       return send(res, 200, { ok: true, snapshot });
     }
@@ -173,7 +174,7 @@ const server = http.createServer(async (req, res) => {
       const code = urlPath.split('/')[4].toUpperCase();
       const body = await readBody(req);
       const actorId = getActorId(req) || body.playerId || url.searchParams.get('playerId');
-      const snapshot = store.startPhase1(code, actorId);
+      const snapshot = await store.startPhase1(code, actorId);
       broadcast(code, 'party.updated', { snapshot });
       return send(res, 200, snapshot);
     }

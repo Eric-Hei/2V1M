@@ -10,5 +10,9 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "@upstash/redis": "^1.36.2",
+    "dotenv": "^17.3.1"
   }
 }

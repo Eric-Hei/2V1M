@@ -1,4 +1,5 @@
 import { randomBytes, randomUUID } from 'node:crypto';
+import { Storage } from './storage.mjs';
 
 const PARTY_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -40,15 +41,29 @@ function conflict(message) {
 
 export class GameStore {
   constructor() {
-    this.partiesById = new Map();
-    this.partiesByCode = new Map();
-    this.players = new Map();
-    this.rounds = new Map();
-    this.statements = new Map();
-    this.votes = new Map();
+    this.storage = new Storage();
+
+    // Pour le mode memory, on garde des références directes pour compatibilité
+    // En mode Redis, ces Maps ne seront pas utilisées
+    if (!this.storage.useRedis) {
+      this.partiesById = this.storage.memory.partiesById;
+      this.partiesByCode = this.storage.memory.partiesByCode;
+      this.players = this.storage.memory.players;
+      this.rounds = this.storage.memory.rounds;
+      this.statements = this.storage.memory.statements;
+      this.votes = this.storage.memory.votes;
+    } else {
+      // En mode Redis, créer des Maps vides pour éviter les erreurs
+      this.partiesById = new Map();
+      this.partiesByCode = new Map();
+      this.players = new Map();
+      this.rounds = new Map();
+      this.statements = new Map();
+      this.votes = new Map();
+    }
   }
 
-  createParty({ code: customCode = null, groups: groupsParam, roundTimerSec: roundTimerSecParam, phaseTimeLimitSec: phaseTimeLimitSecParam, statementTimeLimitSec: statementTimeLimitSecParam } = {}) {
+  async createParty({ code: customCode = null, groups: groupsParam, roundTimerSec: roundTimerSecParam, phaseTimeLimitSec: phaseTimeLimitSecParam, statementTimeLimitSec: statementTimeLimitSecParam } = {}) {
     // Apply defaults
     const groups = groupsParam ?? 0;
     const roundTimerSec = roundTimerSecParam ?? 120;
@@ -74,13 +89,13 @@ export class GameStore {
       if (!/^[A-Z0-9]{3,9}$/.test(requestedCode)) {
         throw badRequest('Custom code must be 3-9 alphanumeric characters');
       }
-      if (this.partiesByCode.has(requestedCode)) {
+      if (await this.storage.partyCodeExists(requestedCode)) {
         throw conflict('Party code already exists');
       }
       partyCode = requestedCode;
     } else {
       partyCode = code();
-      while (this.partiesByCode.has(partyCode)) {
+      while (await this.storage.partyCodeExists(partyCode)) {
         partyCode = code();
       }
     }
@@ -128,8 +143,7 @@ export class GameStore {
       },
     };
 
-    this.partiesById.set(partyId, party);
-    this.partiesByCode.set(partyCode, partyId);
+    await this.storage.setParty(partyId, party);
 
     return {
       partyId,
@@ -138,14 +152,12 @@ export class GameStore {
     };
   }
 
-  getPartyByCode(partyCode) {
-    const partyId = this.partiesByCode.get(partyCode.toUpperCase());
-    if (!partyId) return null;
-    return this.partiesById.get(partyId) ?? null;
+  async getPartyByCode(partyCode) {
+    return await this.storage.getPartyByCode(partyCode);
   }
 
-  getPartySnapshot(codeValue) {
-    const party = this.getPartyByCode(codeValue);
+  async getPartySnapshot(codeValue) {
+    const party = await this.getPartyByCode(codeValue);
     if (!party) return null;
     return this.#snapshot(party);
   }
@@ -185,8 +197,8 @@ export class GameStore {
     return changedParties;
   }
 
-  joinParty(codeValue, nickname, { groupId = null, groupIndex = null, createGroup = false } = {}) {
-    const party = this.getPartyByCode(codeValue);
+  async joinParty(codeValue, nickname, { groupId = null, groupIndex = null, createGroup = false } = {}) {
+    const party = await this.getPartyByCode(codeValue);
     if (!party) throw badRequest('party not found');
     if (party.status !== 'LOBBY') throw conflict('party already started');
     const cleaned = (nickname || '').trim();
@@ -233,13 +245,14 @@ export class GameStore {
       party.hostPlayerId = playerId;
     }
 
-    this.players.set(playerId, player);
+    await this.storage.setPlayer(playerId, player);
+    await this.storage.setParty(party.id, party);
 
     return { playerId, isHost: player.isHost, groupId: player.groupId };
   }
 
-  removePlayer(codeValue, playerId) {
-    const party = this.getPartyByCode(codeValue);
+  async removePlayer(codeValue, playerId) {
+    const party = await this.getPartyByCode(codeValue);
     if (!party) throw badRequest('party not found');
     if (party.status !== 'LOBBY') {
       throw conflict('player removal is only allowed in lobby');
@@ -249,7 +262,7 @@ export class GameStore {
     if (idx === -1) throw badRequest('player not found in party');
 
     const [removed] = party.players.splice(idx, 1);
-    this.players.delete(playerId);
+    await this.storage.deletePlayer(playerId);
     party.scores.delete(playerId);
     party.leakScores.delete(playerId);
     party.seenNarrators.delete(playerId);
@@ -261,11 +274,12 @@ export class GameStore {
       for (const p of party.players) p.isHost = p.id === party.hostPlayerId;
     }
 
+    await this.storage.setParty(party.id, party);
     return this.#snapshot(party);
   }
 
-  startPhase1(codeValue, hostPlayerId) {
-    const party = this.getPartyByCode(codeValue);
+  async startPhase1(codeValue, hostPlayerId) {
+    const party = await this.getPartyByCode(codeValue);
     if (!party) throw badRequest('party not found');
     this.#assertPartyMember(party, hostPlayerId);
     if (party.status !== 'LOBBY') throw conflict('party not in lobby');
@@ -299,14 +313,15 @@ export class GameStore {
     }
 
     if (party.phase1Prep.statementsByPlayerId.size >= party.players.length) {
-      this.#finalizePhase1Prep(party, 'all_submitted');
+      await this.#finalizePhase1Prep(party, 'all_submitted');
     }
 
+    await this.storage.setParty(party.id, party);
     return this.#snapshot(party);
   }
 
-  submitPhase1Statements(codeValue, playerId, items) {
-    const party = this.getPartyByCode(codeValue);
+  async submitPhase1Statements(codeValue, playerId, items) {
+    const party = await this.getPartyByCode(codeValue);
     if (!party) throw badRequest('party not found');
     if (party.status !== 'RUNNING_PHASE1_PREP' && party.status !== 'LOBBY') {
       throw conflict('phase 1 statements can only be submitted in lobby or preparation');
@@ -318,15 +333,17 @@ export class GameStore {
 
     if (party.status === 'LOBBY') {
       if (party.players.length >= 2 && party.phase1Prep.statementsByPlayerId.size >= party.players.length) {
-        return this.startPhase1(codeValue, playerId);
+        return await this.startPhase1(codeValue, playerId);
       }
+      await this.storage.setParty(party.id, party);
       return this.#snapshot(party);
     }
 
     if (party.status === 'RUNNING_PHASE1_PREP' && party.phase1Prep.statementsByPlayerId.size >= party.players.length) {
-      this.#finalizePhase1Prep(party, 'all_submitted');
+      await this.#finalizePhase1Prep(party, 'all_submitted');
     }
 
+    await this.storage.setParty(party.id, party);
     return this.#snapshot(party);
   }
 
@@ -690,7 +707,7 @@ export class GameStore {
     });
   }
 
-  #finalizePhase1Prep(party, reason) {
+  async #finalizePhase1Prep(party, reason) {
     if (party.phase1Prep.completedAt) return;
     party.phase1Prep.completedAt = nowIso();
     party.phase1Prep.completionReason = reason;
