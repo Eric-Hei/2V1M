@@ -552,6 +552,7 @@
       <div>
         <h1 class="brand-title">2V1M</h1>
         <p class="tagline">Deux Vérités, Un Mensonge.</p>
+        <p style="text-align: center; font-size: 0.75rem; color: var(--txt-muted); margin-top: 8px;">v0.1.10</p>
       </div>
 
       <div class="card">
@@ -863,7 +864,7 @@
     }
 
     async function refreshGroups() {
-      const code = $('inp-code').value;
+      const code = $('inp-code').value.toUpperCase().trim();
       if (code.length < 4) return;
       try {
         const p = await api(`/parties/${code}`);
@@ -1037,13 +1038,24 @@
 
       const list = $('list-lobby-players');
       list.innerHTML = '';
+      const isSpectator = !state.playerId;
+
+      // Get submitted players from phase1Prep
+      const submittedPlayerIds = (s.phaseTiming?.phase1Prep?.submittedPlayers || []).map(sp => sp.playerId);
+
       s.players.forEach(p => {
         const row = document.createElement('div');
         row.className = 'list-item';
+        row.style.display = 'grid';
+        row.style.gridTemplateColumns = '1fr auto auto auto';
+        row.style.gap = '12px';
+        row.style.alignItems = 'center';
 
         const groupIdx = getGroupIdx(s, p.groupId);
         const groupColorClass = `group-color-${((groupIdx - 1) % 6) + 1}`;
         const isMe = p.id === state.playerId;
+        const canRemove = isSpectator || !isMe;
+        const hasSubmitted = submittedPlayerIds.includes(p.id);
 
         row.innerHTML = `
           <span style="display: flex; align-items: center; gap: 8px;">
@@ -1053,8 +1065,23 @@
           <span class="group-badge ${groupColorClass}" style="font-size: 0.75rem; padding: 4px 10px;">
             👥 Groupe ${groupIdx}
           </span>
+          <span style="font-size: 0.75rem; ${hasSubmitted ? 'color: var(--success);' : 'opacity: 0.4;'}">
+            ${hasSubmitted ? '✓ Prêt' : '⏳ En attente'}
+          </span>
+          ${canRemove ? `<button class="btn-remove-player" data-player-id="${p.id}" style="background: var(--danger); color: white; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; white-space: nowrap;">✕</button>` : '<span></span>'}
         `;
         list.appendChild(row);
+      });
+
+      // Attach event listeners to remove buttons
+      document.querySelectorAll('.btn-remove-player').forEach(btn => {
+        btn.onclick = async () => {
+          const playerIdToRemove = btn.getAttribute('data-player-id');
+          const playerName = s.players.find(p => p.id === playerIdToRemove)?.nickname;
+          if (confirm(`Retirer ${playerName} de la partie ?`)) {
+            await api(`/parties/${s.code}/players/${playerIdToRemove}`, 'DELETE');
+          }
+        };
       });
     }
 

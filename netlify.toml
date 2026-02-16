@@ -1,10 +1,15 @@
 [build]
-  # Commande de build (rien à builder pour ce projet)
-  command = "echo 'No build needed'"
+  # Commande de build (installer les dépendances)
+  command = "npm install"
   # Dossier à publier (fichiers statiques)
   publish = "public"
   # Fonction serverless
   functions = "netlify/functions"
+
+[functions]
+  # Inclure node_modules dans le bundle
+  node_bundler = "esbuild"
+  included_files = ["src/**"]
 
 # Redirection pour le serveur Node.js
 [[redirects]]

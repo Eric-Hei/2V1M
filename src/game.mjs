@@ -279,14 +279,24 @@ export class GameStore {
   }
 
   async startPhase1(codeValue, hostPlayerId) {
+    console.log(`[startPhase1] Called for party ${codeValue} by player ${hostPlayerId}`);
     const party = await this.getPartyByCode(codeValue);
     if (!party) throw badRequest('party not found');
+    return await this.#startPhase1WithParty(party, hostPlayerId);
+  }
+
+  async #startPhase1WithParty(party, hostPlayerId) {
+    console.log(`[#startPhase1WithParty] Called for party ${party.code} by player ${hostPlayerId}`);
     this.#assertPartyMember(party, hostPlayerId);
-    if (party.status !== 'LOBBY') throw conflict('party not in lobby');
+    if (party.status !== 'LOBBY') {
+      console.log(`[#startPhase1WithParty] ERROR: Party ${party.code} status is ${party.status}, not LOBBY`);
+      throw conflict('party not in lobby');
+    }
 
     for (const group of party.groups) {
       const players = party.players.filter((p) => p.groupId === group.id);
       if (players.length < 2) {
+        console.log(`[#startPhase1WithParty] ERROR: Group ${group.idx} has only ${players.length} players`);
         throw conflict(`group ${group.idx} needs at least 2 players`);
       }
     }
@@ -303,9 +313,14 @@ export class GameStore {
     party.phase1Prep.completionReason = null;
     // Keep statements submitted in lobby, but drop any stale player ids.
     const currentPlayerIds = new Set(party.players.map((p) => p.id));
+    const submittedPlayerIds = [...party.phase1Prep.statementsByPlayerId.keys()];
+    console.log(`[#startPhase1WithParty] Current player IDs:`, Array.from(currentPlayerIds));
+    console.log(`[#startPhase1WithParty] Submitted player IDs:`, submittedPlayerIds);
     party.phase1Prep.statementsByPlayerId = new Map(
       [...party.phase1Prep.statementsByPlayerId.entries()].filter(([pid]) => currentPlayerIds.has(pid))
     );
+
+    console.log(`[#startPhase1WithParty] After filtering: ${party.phase1Prep.statementsByPlayerId.size} statements for ${party.players.length} players`);
 
     for (const group of party.groups) {
       group.status = 'WAITING';
@@ -313,10 +328,12 @@ export class GameStore {
     }
 
     if (party.phase1Prep.statementsByPlayerId.size >= party.players.length) {
+      console.log(`[#startPhase1WithParty] All players submitted, finalizing prep immediately`);
       await this.#finalizePhase1Prep(party, 'all_submitted');
     }
 
     await this.storage.setParty(party.id, party);
+    console.log(`[#startPhase1WithParty] Party ${party.code} saved with status ${party.status}`);
     return this.#snapshot(party);
   }
 
@@ -331,15 +348,22 @@ export class GameStore {
     const cleaned = this.#validateStatements(items);
     party.phase1Prep.statementsByPlayerId.set(playerId, cleaned);
 
+    console.log(`[submitPhase1Statements] Party ${codeValue} status: ${party.status}, players: ${party.players.length}, submitted: ${party.phase1Prep.statementsByPlayerId.size}`);
+
     if (party.status === 'LOBBY') {
       if (party.players.length >= 2 && party.phase1Prep.statementsByPlayerId.size >= party.players.length) {
-        return await this.startPhase1(codeValue, playerId);
+        console.log(`[submitPhase1Statements] Auto-starting game for party ${codeValue}`);
+        // Don't call startPhase1 which would re-fetch the party from Redis
+        // Instead, transition the party directly here
+        return await this.#startPhase1WithParty(party, playerId);
       }
+      console.log(`[submitPhase1Statements] Not auto-starting: players=${party.players.length}, submitted=${party.phase1Prep.statementsByPlayerId.size}`);
       await this.storage.setParty(party.id, party);
       return this.#snapshot(party);
     }
 
     if (party.status === 'RUNNING_PHASE1_PREP' && party.phase1Prep.statementsByPlayerId.size >= party.players.length) {
+      console.log(`[submitPhase1Statements] Finalizing phase1 prep for party ${codeValue}`);
       await this.#finalizePhase1Prep(party, 'all_submitted');
     }
 
@@ -368,28 +392,29 @@ export class GameStore {
     return { roundId: round.id, status: round.status, statements: shuffled };
   }
 
-  vote(roundId, playerId, statementId) {
-    const round = this.rounds.get(roundId);
+  async vote(roundId, playerId, statementId) {
+    const round = await this.storage.getRound(roundId);
     if (!round) throw badRequest('round not found');
     if (round.status !== 'VOTING') throw conflict('round not in voting state');
 
-    const party = this.partiesById.get(round.partyId);
-    const player = this.players.get(playerId);
+    const party = await this.storage.getPartyById(round.partyId);
+    const player = await this.storage.getPlayer(playerId);
     if (!party || !player) throw badRequest('party/player not found');
 
     if (!this.#isEligibleVoter(party, round, player)) {
       throw forbidden('player is not eligible to vote on this round');
     }
 
-    if (round.votes.some((v) => v.playerId === playerId)) {
+    if (round.votes.has(playerId)) {
       throw conflict('already voted');
     }
 
     const statement = round.statements.find((s) => s.id === statementId);
     if (!statement) throw badRequest('statement not found');
 
+    const voteId = randomUUID();
     const vote = {
-      id: this.votes.size + 1,
+      id: voteId,
       roundId,
       playerId,
       statementId,
@@ -399,12 +424,14 @@ export class GameStore {
       createdAt: nowIso(),
     };
 
-    round.votes.push(vote);
-    this.votes.set(vote.id, vote);
+    round.votes.set(playerId, vote);
+    this.votes.set(voteId, vote);
+    await this.storage.setRound(roundId, round);
+    await this.storage.setVote(voteId, vote);
 
     const required = this.#eligibleVoters(party, round).length;
-    if (round.votes.length >= required) {
-      this.#closeRound(party, round);
+    if (round.votes.size >= required) {
+      await this.#closeRound(party, round);
     }
 
     return { accepted: true, roundStatus: round.status };
@@ -539,7 +566,7 @@ export class GameStore {
     party.currentPhase2RoundIndex = party.phase2Rounds.length;
   }
 
-  #closeRound(party, round) {
+  async #closeRound(party, round) {
     if (round.status === 'CLOSED') return;
 
     round.status = 'REVEAL';
@@ -548,9 +575,11 @@ export class GameStore {
       round.revealedLieStatementId = lieStatement.id;
     }
 
-    const correct = [...round.votes]
+    // Convert votes Map to array for processing
+    const votesArray = Array.from(round.votes.values());
+    const correct = votesArray
       .filter((v) => v.isCorrect)
-      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime() || a.id - b.id);
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime() || a.id.localeCompare(b.id));
 
     const voterCount = this.#eligibleVoters(party, round).length;
     for (let i = 0; i < correct.length; i += 1) {
@@ -559,11 +588,14 @@ export class GameStore {
       const base = voterCount - i;
       const multiplier = round.phase === 2 ? party.phase2Multiplier : 1;
       vote.points = Math.max(base, 1) * multiplier;
+      // Update vote in Map
+      round.votes.set(vote.playerId, vote);
+      await this.storage.setVote(vote.id, vote);
     }
 
     const roundStartedMs = round.startedAt ? new Date(round.startedAt).getTime() : null;
 
-    for (const vote of round.votes) {
+    for (const vote of votesArray) {
       const score = party.scores.get(vote.playerId);
       if (!score) continue;
       if (round.phase === 1) score.phase1 += vote.points;
@@ -572,6 +604,8 @@ export class GameStore {
       party.scores.set(vote.playerId, score);
 
       vote.timeToVoteMs = roundStartedMs ? Math.max(0, new Date(vote.createdAt).getTime() - roundStartedMs) : null;
+      round.votes.set(vote.playerId, vote);
+      await this.storage.setVote(vote.id, vote);
     }
 
     party.roundHistory.push({
@@ -584,7 +618,7 @@ export class GameStore {
       endedAt: nowIso(),
       revealedLieStatementId: round.revealedLieStatementId,
       lieText: round.statements.find((s) => s.id === round.revealedLieStatementId)?.text ?? null,
-      votes: round.votes.map((v) => ({
+      votes: votesArray.map((v) => ({
         playerId: v.playerId,
         isCorrect: v.isCorrect,
         points: v.points,
@@ -596,7 +630,7 @@ export class GameStore {
     });
 
     if (round.phase === 1) {
-      const leak = round.votes.reduce((acc, v) => acc + v.points, 0);
+      const leak = votesArray.reduce((acc, v) => acc + v.points, 0);
       party.leakScores.set(round.narratorId, leak);
 
       const voters = this.#eligibleVoters(party, round);
@@ -604,13 +638,17 @@ export class GameStore {
         party.seenNarrators.get(player.id)?.add(round.narratorId);
       }
 
-      this.#advancePhase1GroupRound(party, round.groupId);
+      await this.#advancePhase1GroupRound(party, round.groupId);
     } else {
-      this.#advancePhase2Round(party);
+      await this.#advancePhase2Round(party);
     }
 
     round.status = 'CLOSED';
     round.endedAt = nowIso();
+
+    // Save round and party to storage
+    await this.storage.setRound(round.id, round);
+    await this.storage.setParty(party.id, party);
   }
 
   #advancePhase1GroupRound(party, groupId) {
@@ -708,7 +746,11 @@ export class GameStore {
   }
 
   async #finalizePhase1Prep(party, reason) {
-    if (party.phase1Prep.completedAt) return;
+    console.log(`[#finalizePhase1Prep] Called for party ${party.code}, reason: ${reason}`);
+    if (party.phase1Prep.completedAt) {
+      console.log(`[#finalizePhase1Prep] Already completed, skipping`);
+      return;
+    }
     party.phase1Prep.completedAt = nowIso();
     party.phase1Prep.completionReason = reason;
 
@@ -716,6 +758,7 @@ export class GameStore {
     party.status = 'RUNNING_PHASE1';
     party.phase1.startedAt = isoFromMs(startedAtMs);
     party.phase1.deadlineAt = isoFromMs(startedAtMs + party.phaseTimeLimitSec * 1000);
+    console.log(`[#finalizePhase1Prep] Party ${party.code} status changed to RUNNING_PHASE1`);
 
     for (const group of party.groups) {
       const groupPlayers = party.players.filter((p) => p.groupId === group.id);
@@ -727,7 +770,9 @@ export class GameStore {
       }
 
       group.status = 'PLAYING';
-      const rounds = narrators.map((narrator, idx) => {
+      const rounds = [];
+      for (let idx = 0; idx < narrators.length; idx++) {
+        const narrator = narrators[idx];
         const roundId = randomUUID();
         const cleaned = party.phase1Prep.statementsByPlayerId.get(narrator.id);
         const shuffled = cleaned
@@ -741,15 +786,20 @@ export class GameStore {
           narratorId: narrator.id,
           status: idx === 0 ? 'VOTING' : 'DRAFT',
           statements: shuffled,
-          votes: [],
+          votes: new Map(),
           revealedLieStatementId: null,
           startedAt: idx === 0 ? nowIso() : null,
           endedAt: null,
         };
-        for (const s of shuffled) this.statements.set(s.id, s);
+        // Save statements and round to storage
+        for (const s of shuffled) {
+          this.statements.set(s.id, s);
+          await this.storage.setStatement(s.id, s);
+        }
         this.rounds.set(roundId, round);
-        return round;
-      });
+        await this.storage.setRound(roundId, round);
+        rounds.push(round);
+      }
       party.roundsByGroup.set(group.id, { rounds, currentRoundIndex: 0 });
     }
 

@@ -71,7 +71,7 @@ export async function handler(event) {
     if (method === 'POST' && path.match(/^\/api\/v1\/parties\/[A-Z0-9]+\/statements$/)) {
       const code = path.split('/')[4];
       if (!playerId) return respond(401, { message: 'Missing x-player-id' });
-      await store.submitStatements(code, playerId, body);
+      await store.submitPhase1Statements(code, playerId, body.items);
       return respond(200, { ok: true });
     }
 
