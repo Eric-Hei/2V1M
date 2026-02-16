@@ -217,6 +217,24 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, snapshot);
     }
 
+    // POST /api/v1/sessions - Create a session (after join)
+    if (req.method === 'POST' && urlPath === '/api/v1/sessions') {
+      const body = await readBody(req);
+      if (!body.playerId || !body.code) {
+        return send(res, 400, { error: { code: 'BAD_REQUEST', message: 'playerId and code are required' } });
+      }
+      const token = await store.createSession(body.playerId, body.code);
+      return send(res, 201, { token });
+    }
+
+    // GET /api/v1/sessions/:token - Retrieve a session
+    if (req.method === 'GET' && urlPath.match(/^\/api\/v1\/sessions\/[^/]+$/)) {
+      const token = urlPath.split('/').at(-1);
+      const session = await store.getSession(token);
+      if (!session) return send(res, 404, { error: { code: 'SESSION_NOT_FOUND', message: 'session not found or expired' } });
+      return send(res, 200, session);
+    }
+
     if (routeKey(req.method, urlPath) === 'GET /health') {
       return send(res, 200, { ok: true });
     }

@@ -125,6 +125,23 @@ export async function handler(event) {
       return respond(200, { ok: true });
     }
 
+    // POST /api/v1/sessions - Create a session (after join)
+    if (method === 'POST' && path === '/api/v1/sessions') {
+      if (!body || !body.playerId || !body.code) {
+        return respond(400, { message: 'playerId and code are required' });
+      }
+      const token = await store.createSession(body.playerId, body.code);
+      return respond(200, { token });
+    }
+
+    // GET /api/v1/sessions/:token - Retrieve a session
+    if (method === 'GET' && path.match(/^\/api\/v1\/sessions\/[^\/]+$/)) {
+      const token = path.split('/')[4];
+      const session = await store.getSession(token);
+      if (!session) return respond(404, { message: 'Session not found or expired' });
+      return respond(200, session);
+    }
+
     // Route non trouvée
     return respond(404, { message: 'Not found' });
 

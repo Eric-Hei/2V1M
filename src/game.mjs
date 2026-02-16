@@ -63,6 +63,23 @@ export class GameStore {
     }
   }
 
+  // ========== SESSION MANAGEMENT ==========
+
+  async createSession(playerId, code) {
+    const token = randomUUID();
+    const session = { playerId, code: code.toUpperCase(), createdAt: new Date().toISOString() };
+    await this.storage.setSession(token, session);
+    return token;
+  }
+
+  async getSession(token) {
+    return await this.storage.getSession(token);
+  }
+
+  async deleteSession(token) {
+    await this.storage.deleteSession(token);
+  }
+
   async createParty({ code: customCode = null, groups: groupsParam, roundTimerSec: roundTimerSecParam, phaseTimeLimitSec: phaseTimeLimitSecParam, statementTimeLimitSec: statementTimeLimitSecParam } = {}) {
     // Apply defaults
     const groups = groupsParam ?? 0;
@@ -393,8 +410,13 @@ export class GameStore {
   }
 
   async vote(roundId, playerId, statementId) {
+    console.log(`[vote] Called for round ${roundId}, player ${playerId}, statement ${statementId}`);
     const round = await this.storage.getRound(roundId);
-    if (!round) throw badRequest('round not found');
+    if (!round) {
+      console.log(`[vote] ERROR: Round ${roundId} not found in storage`);
+      throw badRequest('round not found');
+    }
+    console.log(`[vote] Round ${roundId} status: ${round.status}, votes: ${round.votes?.size || 0}`);
     if (round.status !== 'VOTING') throw conflict('round not in voting state');
 
     const party = await this.storage.getPartyById(round.partyId);
@@ -429,8 +451,13 @@ export class GameStore {
     await this.storage.setRound(roundId, round);
     await this.storage.setVote(voteId, vote);
 
-    const required = this.#eligibleVoters(party, round).length;
+    const eligibleVoters = this.#eligibleVoters(party, round);
+    const required = eligibleVoters.length;
+    console.log(`[vote] Eligible voters: ${required}, current votes: ${round.votes.size}`);
+    console.log(`[vote] Eligible voter IDs:`, eligibleVoters.map(v => v.id));
+    console.log(`[vote] Narrator ID: ${round.narratorId}`);
     if (round.votes.size >= required) {
+      console.log(`[vote] All votes received, closing round`);
       await this.#closeRound(party, round);
     }
 
@@ -651,7 +678,7 @@ export class GameStore {
     await this.storage.setParty(party.id, party);
   }
 
-  #advancePhase1GroupRound(party, groupId) {
+  async #advancePhase1GroupRound(party, groupId) {
     const state = party.roundsByGroup.get(groupId);
     if (!state) return;
     const nextIndex = state.currentRoundIndex + 1;
@@ -667,19 +694,25 @@ export class GameStore {
     const nextRound = state.rounds[nextIndex];
     nextRound.status = 'VOTING';
     nextRound.startedAt = nowIso();
+    console.log(`[#advancePhase1GroupRound] Advancing to round ${nextRound.id}, setting status to VOTING`);
+    // Save the updated round to storage
+    await this.storage.setRound(nextRound.id, nextRound);
   }
 
-  #advancePhase2Round(party) {
+  async #advancePhase2Round(party) {
     const nextIndex = party.currentPhase2RoundIndex + 1;
     if (nextIndex >= party.phase2Rounds.length) {
       party.currentPhase2RoundIndex = party.phase2Rounds.length;
-      this.#markPhase2Complete(party, 'all_played');
+      await this.#markPhase2Complete(party, 'all_played');
       return;
     }
     party.currentPhase2RoundIndex = nextIndex;
     const nextRound = party.phase2Rounds[nextIndex];
     nextRound.status = 'QUESTIONING';
     nextRound.startedAt = nowIso();
+    console.log(`[#advancePhase2Round] Advancing to round ${nextRound.id}, setting status to QUESTIONING`);
+    // Save the updated round to storage
+    await this.storage.setRound(nextRound.id, nextRound);
   }
 
   #finalizePhase1IfComplete(party) {
@@ -1011,6 +1044,13 @@ export class GameStore {
   }
 
   #publicRound(round) {
+    // Handle both Map (phase1) and Array (phase2) votes
+    const voterIds = round.votes instanceof Map
+      ? Array.from(round.votes.keys())
+      : Array.isArray(round.votes)
+        ? round.votes.map((v) => v.playerId)
+        : [];
+
     return {
       id: round.id,
       phase: round.phase,
@@ -1020,7 +1060,8 @@ export class GameStore {
       status: round.status,
       statements: round.status === 'QUESTIONING' ? [] : round.statements,
       revealedLieStatementId: round.status === 'CLOSED' ? round.revealedLieStatementId : null,
-      votesCount: round.votes.length,
+      votesCount: voterIds.length,
+      voterIds,
       startedAt: round.startedAt,
       endedAt: round.endedAt,
     };

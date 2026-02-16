@@ -17,13 +17,25 @@
   to = "/.netlify/functions/server/:splat"
   status = 200
 
-# Redirection pour le mode spectateur (client-side routing)
+# Redirection pour la vue joueur (client-side routing)
+[[redirects]]
+  from = "/party/*"
+  to = "/index.html"
+  status = 200
+
+# Redirection pour la vue admin/spectateur (client-side routing)
+[[redirects]]
+  from = "/admin/*"
+  to = "/index.html"
+  status = 200
+
+# Redirection pour le mode spectateur legacy (client-side routing)
 [[redirects]]
   from = "/spectate/*"
   to = "/index.html"
   status = 200
 
-# Redirection pour join (client-side routing)
+# Redirection pour join legacy (client-side routing)
 [[redirects]]
   from = "/join/*"
   to = "/index.html"

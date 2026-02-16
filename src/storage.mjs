@@ -18,6 +18,7 @@ export class Storage {
         rounds: new Map(),
         statements: new Map(),
         votes: new Map(),
+        sessions: new Map(),
       };
     }
     
@@ -162,12 +163,49 @@ export class Storage {
     }
   }
 
+  // ========== SESSIONS ==========
+
+  async setSession(token, session) {
+    if (this.useRedis) {
+      await this.redis.set(`session:${token}`, JSON.stringify(session), { ex: 86400 }); // 24h TTL
+    } else {
+      this.memory.sessions.set(token, session);
+    }
+  }
+
+  async getSession(token) {
+    if (this.useRedis) {
+      const data = await this.redis.get(`session:${token}`);
+      if (!data) return null;
+      return typeof data === 'string' ? JSON.parse(data) : data;
+    } else {
+      return this.memory.sessions.get(token) ?? null;
+    }
+  }
+
+  async deleteSession(token) {
+    if (this.useRedis) {
+      await this.redis.del(`session:${token}`);
+    } else {
+      this.memory.sessions.delete(token);
+    }
+  }
+
   // ========== SERIALIZATION HELPERS ==========
   
   _serializeParty(party) {
+    // Serialize roundsByGroup and the rounds inside
+    const roundsByGroup = Array.from(party.roundsByGroup.entries()).map(([groupId, state]) => [
+      groupId,
+      {
+        ...state,
+        rounds: state.rounds.map(round => this._serializeRound(round)),
+      },
+    ]);
+
     return {
       ...party,
-      roundsByGroup: Array.from(party.roundsByGroup.entries()),
+      roundsByGroup,
       scores: Array.from(party.scores.entries()),
       leakScores: Array.from(party.leakScores.entries()),
       seenNarrators: Array.from(party.seenNarrators.entries()).map(([key, set]) => [key, Array.from(set)]),
@@ -179,31 +217,93 @@ export class Storage {
   }
 
   _deserializeParty(data) {
-    return {
-      ...data,
-      roundsByGroup: new Map(data.roundsByGroup),
-      scores: new Map(data.scores),
-      leakScores: new Map(data.leakScores),
-      seenNarrators: new Map(data.seenNarrators.map(([key, arr]) => [key, new Set(arr)])),
-      phase1Prep: {
-        ...data.phase1Prep,
-        statementsByPlayerId: new Map(data.phase1Prep.statementsByPlayerId),
-      },
-    };
+    try {
+      // Deserialize roundsByGroup and the rounds inside
+      const roundsByGroup = new Map(
+        data.roundsByGroup.map(([groupId, state]) => {
+          console.log(`[_deserializeParty] Deserializing group ${groupId}, rounds count: ${state.rounds?.length || 0}`);
+          return [
+            groupId,
+            {
+              ...state,
+              rounds: state.rounds.map((round, idx) => {
+                console.log(`[_deserializeParty] Deserializing round ${idx}, votes type: ${Array.isArray(round.votes) ? 'array' : typeof round.votes}`);
+                return this._deserializeRound(round);
+              }),
+            },
+          ];
+        })
+      );
+
+      return {
+        ...data,
+        roundsByGroup,
+        scores: new Map(data.scores),
+        leakScores: new Map(data.leakScores),
+        seenNarrators: new Map(data.seenNarrators.map(([key, arr]) => [key, new Set(arr)])),
+        phase1Prep: {
+          ...data.phase1Prep,
+          statementsByPlayerId: new Map(data.phase1Prep.statementsByPlayerId),
+        },
+      };
+    } catch (error) {
+      console.error('[_deserializeParty] Error:', error);
+      throw error;
+    }
   }
 
   _serializeRound(round) {
-    return {
-      ...round,
-      votes: Array.from(round.votes.entries()),
-    };
+    try {
+      // If votes is already an array, return as is
+      if (Array.isArray(round.votes)) {
+        console.log(`[_serializeRound] Votes already an array, skipping`);
+        return round;
+      }
+      // If votes is a Map, convert to array
+      if (round.votes instanceof Map) {
+        console.log(`[_serializeRound] Converting votes Map (size ${round.votes.size}) to array`);
+        return {
+          ...round,
+          votes: Array.from(round.votes.entries()),
+        };
+      }
+      // Otherwise, assume it's null or undefined
+      console.log(`[_serializeRound] Votes is ${typeof round.votes}, creating empty array`);
+      return {
+        ...round,
+        votes: [],
+      };
+    } catch (error) {
+      console.error('[_serializeRound] Error:', error);
+      throw error;
+    }
   }
 
   _deserializeRound(data) {
-    return {
-      ...data,
-      votes: new Map(data.votes),
-    };
+    try {
+      // If votes is already a Map, return as is
+      if (data.votes instanceof Map) {
+        console.log(`[_deserializeRound] Votes already a Map, skipping`);
+        return data;
+      }
+      // If votes is an array, convert to Map
+      if (Array.isArray(data.votes)) {
+        console.log(`[_deserializeRound] Converting votes array (length ${data.votes.length}) to Map`);
+        return {
+          ...data,
+          votes: new Map(data.votes),
+        };
+      }
+      // Otherwise, assume it's an object or null
+      console.log(`[_deserializeRound] Votes is ${typeof data.votes}, creating empty Map`);
+      return {
+        ...data,
+        votes: new Map(),
+      };
+    } catch (error) {
+      console.error('[_deserializeRound] Error:', error);
+      throw error;
+    }
   }
 }
 

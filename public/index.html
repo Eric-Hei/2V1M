@@ -445,6 +445,59 @@
       margin-left: 32px;
     }
 
+    /* Player Status Badges */
+    .player-status-section {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    .player-status-section h4 {
+      margin: 0 0 10px 0;
+      font-size: 0.85rem;
+      text-align: center;
+      color: var(--txt-muted);
+    }
+
+    .player-status-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      margin-bottom: 4px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      background: rgba(255,255,255,0.03);
+    }
+
+    .player-status-row .ps-name {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .player-status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .player-status-badge.status-waiting   { background: rgba(150,150,150,0.15); color: var(--txt-muted); }
+    .player-status-badge.status-writing    { background: rgba(255,193,7,0.15); color: #ffc107; }
+    .player-status-badge.status-ready      { background: rgba(76,175,80,0.15); color: #4caf50; }
+    .player-status-badge.status-narrator   { background: rgba(156,39,176,0.15); color: #ce93d8; }
+    .player-status-badge.status-listening  { background: rgba(33,150,243,0.15); color: #64b5f6; }
+    .player-status-badge.status-voting     { background: rgba(255,152,0,0.15); color: #ffb74d; }
+    .player-status-badge.status-voted      { background: rgba(76,175,80,0.15); color: #4caf50; }
+    .player-status-badge.status-done       { background: rgba(96,125,139,0.15); color: #90a4ae; }
+    .player-status-badge.status-finished   { background: rgba(96,125,139,0.15); color: #90a4ae; }
+
     @media (max-width: 768px) {
       .live-scoreboard {
         position: static;
@@ -540,9 +593,13 @@
   </div>
 
   <!-- Live Scoreboard (for spectators and during game) -->
-  <div id="live-scoreboard" class="live-scoreboard hidden">
+  <div id="live-scoreboard" class="live-scoreboard hidden" role="complementary" aria-label="Tableau de bord en direct">
     <h3>🏆 Classement Live</h3>
     <div id="live-scores-list"></div>
+    <div class="player-status-section" id="player-status-panel" aria-live="polite">
+      <h4>👥 Statuts des joueurs</h4>
+      <div id="player-status-list"></div>
+    </div>
   </div>
 
   <div class="app-container">
@@ -552,7 +609,7 @@
       <div>
         <h1 class="brand-title">2V1M</h1>
         <p class="tagline">Deux Vérités, Un Mensonge.</p>
-        <p style="text-align: center; font-size: 0.75rem; color: var(--txt-muted); margin-top: 8px;">v0.1.10</p>
+        <p style="text-align: center; font-size: 0.75rem; color: var(--txt-muted); margin-top: 8px;">v0.1.22</p>
       </div>
 
       <div class="card">
@@ -721,36 +778,98 @@
       myVotes: new Set(),
       hasSubmittedPrep: false,
       isOffline: false,
-      isSpectatorMode: false
+      isSpectatorMode: false,
+      _renderedRoundId: null,
+      _renderedVoteCount: -1,
+      _renderedRoundStatus: null
     };
 
     const $ = (id) => document.getElementById(id);
 
-    /* --- AUTO-JOIN FROM URL --- */
-    function checkUrlAndAutoJoin() {
+    /* --- COOKIE HELPERS --- */
+    function setSessionCookie(token) {
+      document.cookie = `2v1m_session=${token}; path=/; max-age=${60 * 60 * 24}; SameSite=Lax`;
+    }
+
+    function getSessionCookie() {
+      const match = document.cookie.match(/(^|;\s*)2v1m_session=([^;]+)/);
+      return match ? match[2] : null;
+    }
+
+    function clearSessionCookie() {
+      document.cookie = '2v1m_session=; path=/; max-age=0; SameSite=Lax';
+    }
+
+    /* --- URL NAVIGATION --- */
+    function navigate(path, replace = false) {
+      if (replace) {
+        history.replaceState(null, '', path);
+      } else {
+        history.pushState(null, '', path);
+      }
+    }
+
+    /* --- INIT FROM URL ON PAGE LOAD --- */
+    async function initFromUrl() {
       const path = window.location.pathname;
 
-      // Check for /spectate/:code
+      // /admin/:code → spectator/admin mode
+      const adminMatch = path.match(/^\/admin\/([A-Z0-9]+)$/i);
+      if (adminMatch) {
+        const code = adminMatch[1].toUpperCase();
+        state.code = code;
+        state.playerId = null;
+        state.isSpectatorMode = true;
+        startPolling();
+        return;
+      }
+
+      // /spectate/:code → legacy, redirect to /admin/:code
       const spectateMatch = path.match(/^\/spectate\/([A-Z0-9]+)$/i);
       if (spectateMatch) {
         const code = spectateMatch[1].toUpperCase();
+        navigate(`/admin/${code}`, true);
         state.code = code;
-        state.playerId = null; // Spectator mode
+        state.playerId = null;
         state.isSpectatorMode = true;
         startPolling();
-        return true;
+        return;
       }
 
-      // Check for /join/:code (legacy support)
+      // /party/:code → player mode, restore session from cookie
+      const partyMatch = path.match(/^\/party\/([A-Z0-9]+)$/i);
+      if (partyMatch) {
+        const code = partyMatch[1].toUpperCase();
+        const token = getSessionCookie();
+        if (token) {
+          try {
+            const session = await api(`/sessions/${token}`);
+            if (session && session.code.toUpperCase() === code) {
+              state.code = code;
+              state.playerId = session.playerId;
+              startPolling();
+              return;
+            }
+          } catch (e) {
+            console.warn('Session restore failed:', e);
+          }
+        }
+        // Session not found or invalid → show welcome with pre-filled code
+        clearSessionCookie();
+        navigate('/', true);
+        $('inp-code').value = partyMatch[1].toUpperCase();
+        return;
+      }
+
+      // /join/:code → legacy, pre-fill code
       const joinMatch = path.match(/^\/join\/([A-Z0-9]+)$/i);
       if (joinMatch) {
         const code = joinMatch[1].toUpperCase();
         $('inp-code').value = code;
-        // Don't auto-join, just pre-fill the code
-        return true;
+        return;
       }
 
-      return false;
+      // / → welcome page (default, nothing to do)
     }
 
     const api = async (endpoint, method = 'GET', body = null) => {
@@ -831,6 +950,11 @@
       // Create as Spectator/Host Only
       state.code = res.code;
       state.playerId = null; // No player ID
+      state.isSpectatorMode = true;
+
+      // Navigate to /admin/:code
+      navigate(`/admin/${res.code}`);
+
       startPolling();
 
       // Auto-fill code in Join tab for convenience
@@ -859,6 +983,25 @@
         const res = await api(`/parties/${code}/join`, 'POST', body);
         state.playerId = res.playerId;
         state.code = code;
+
+        // Create server-side session and store token in cookie
+        try {
+          const sessionRes = await api('/sessions', 'POST', { playerId: res.playerId, code });
+          if (sessionRes.token) {
+            setSessionCookie(sessionRes.token);
+          }
+        } catch (e) {
+          console.warn('Session creation failed:', e);
+        }
+
+        // Navigate to /party/:code
+        navigate(`/party/${code}`);
+
+        // Fetch snapshot immediately to show groups
+        const snap = await api(`/parties/${code}`);
+        state.snapshot = snap;
+        render();
+
         startPolling();
       } catch (e) { console.error(e); }
     }
@@ -878,7 +1021,7 @@
         });
       } catch (e) { }
     }
-    $('inp-code').onkeyup = refreshGroups;
+    $('inp-code').oninput = refreshGroups;
 
     // 2. PREP (LOBBY)
     $('btn-submit-statements').onclick = async () => {
@@ -908,9 +1051,22 @@
       const round = getMyActiveRound();
       if (!round) return;
 
-      await api(`/rounds/${round.id}/vote`, 'POST', { statementId });
-      state.myVotes.add(round.id);
-      renderGameView(); // update UI locally immediately
+      try {
+        await api(`/rounds/${round.id}/vote`, 'POST', { statementId });
+        state.myVotes.add(round.id);
+      } catch (error) {
+        console.error('Vote failed:', error);
+      }
+      // Refresh snapshot immediately to show new round or scores
+      try {
+        const snap = await api(`/parties/${state.code}`);
+        state.snapshot = snap;
+        state._renderedRoundId = null; // Force re-render
+        state._renderedRoundStatus = null;
+        render();
+      } catch (e) {
+        console.error('Snapshot refresh failed:', e);
+      }
     }
 
     /* --- SYNC & RENDER --- */
@@ -957,6 +1113,7 @@
                                     (!state.playerId || (myGroup && myGroup.status === 'DONE'));
       if (shouldShowLiveScores) {
         renderLiveScoreboard(s);
+        renderPlayerStatusPanel(s);
         $('live-scoreboard').classList.remove('hidden');
       } else {
         $('live-scoreboard').classList.add('hidden');
@@ -993,20 +1150,9 @@
           switchView('game');
           renderGameRound(activeR, s);
         } else if (!state.playerId) {
-          // Spectator View of running game
-          // Pick the first active round from any group to show "something"
-          const anyRound = s.groups.find(g => g.currentRound)?.currentRound;
-          if (anyRound) {
-            switchView('game');
-            renderGameRound(anyRound, s);
-          } else if (s.lastReveal) {
-            switchView('reveal');
-            renderReveal(s.lastReveal);
-          } else {
-            // Show scores view for spectators when no active round
-            switchView('scores');
-            renderScores(s);
-          }
+          // Spectator/Admin: show only tracking (scores + statuses), never statements
+          switchView('scores');
+          renderScores(s);
         } else {
           // If no active round (between rounds), check for lastReveal
           if (s.lastReveal) {
@@ -1040,9 +1186,6 @@
       list.innerHTML = '';
       const isSpectator = !state.playerId;
 
-      // Get submitted players from phase1Prep
-      const submittedPlayerIds = (s.phaseTiming?.phase1Prep?.submittedPlayers || []).map(sp => sp.playerId);
-
       s.players.forEach(p => {
         const row = document.createElement('div');
         row.className = 'list-item';
@@ -1055,7 +1198,7 @@
         const groupColorClass = `group-color-${((groupIdx - 1) % 6) + 1}`;
         const isMe = p.id === state.playerId;
         const canRemove = isSpectator || !isMe;
-        const hasSubmitted = submittedPlayerIds.includes(p.id);
+        const st = getPlayerStatus(p, s);
 
         row.innerHTML = `
           <span style="display: flex; align-items: center; gap: 8px;">
@@ -1065,10 +1208,8 @@
           <span class="group-badge ${groupColorClass}" style="font-size: 0.75rem; padding: 4px 10px;">
             👥 Groupe ${groupIdx}
           </span>
-          <span style="font-size: 0.75rem; ${hasSubmitted ? 'color: var(--success);' : 'opacity: 0.4;'}">
-            ${hasSubmitted ? '✓ Prêt' : '⏳ En attente'}
-          </span>
-          ${canRemove ? `<button class="btn-remove-player" data-player-id="${p.id}" style="background: var(--danger); color: white; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; white-space: nowrap;">✕</button>` : '<span></span>'}
+          <span class="player-status-badge ${st.cssClass}">${st.emoji} ${st.text}</span>
+          ${canRemove ? `<button class="btn-remove-player" data-player-id="${p.id}" style="background: var(--danger); color: white; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; white-space: nowrap;" aria-label="Retirer ${p.nickname}">✕</button>` : '<span></span>'}
         `;
         list.appendChild(row);
       });
@@ -1086,25 +1227,40 @@
     }
 
     function renderGameRound(round, s) {
+      const isSpectator = !state.playerId;
+      const isNarrator = !isSpectator && round.narratorId === state.playerId;
+      const hasVoted = !isSpectator && round.votes && round.votes.some(v => v.playerId === state.playerId);
+      const voteCount = round.votes ? round.votes.length : 0;
+
+      // Skip full DOM rebuild if same round, same status, same vote count (avoids flickering)
+      if (state._renderedRoundId === round.id &&
+          state._renderedRoundStatus === round.status &&
+          state._renderedVoteCount === voteCount) {
+        return;
+      }
+      state._renderedRoundId = round.id;
+      state._renderedRoundStatus = round.status;
+      state._renderedVoteCount = voteCount;
+
       const narrator = s.players.find(p => p.id === round.narratorId);
-      $('lbl-narrator-name').innerText = `Au tour de ${narrator?.nickname || 'Inconnu'}`;
+      $('lbl-narrator-name').innerText = `Au tour de ${narrator?.nickname || 'Inconnu'} d'énoncer ses vérités/mensonge`;
 
       const list = $('list-vote-options');
       list.innerHTML = '';
 
-      const isNarrator = round.narratorId === state.playerId;
-      const hasVoted = round.votes && round.votes.some(v => v.playerId === state.playerId);
-
       if (round.status === 'QUESTIONING') {
         $('msg-host-wait').classList.remove('hidden');
-        $('list-vote-options').innerHTML = ''; // Hide buttons
         $('msg-vote-wait').classList.add('hidden');
         return;
       }
 
       $('msg-host-wait').classList.add('hidden');
 
-      if (isNarrator) {
+      if (isSpectator) {
+        const totalPlayers = s.players.filter(p => p.id !== round.narratorId).length;
+        $('msg-vote-wait').innerText = `👀 Spectateur – ${voteCount}/${totalPlayers} votes reçus`;
+        $('msg-vote-wait').classList.remove('hidden');
+      } else if (isNarrator) {
         $('msg-vote-wait').innerText = "C'est ton tour. Reste de marbre !";
         $('msg-vote-wait').classList.remove('hidden');
       } else if (hasVoted) {
@@ -1118,13 +1274,30 @@
         round.statements.forEach(stmt => {
           const btn = document.createElement('div');
           btn.className = 'statement-card';
-          if (hasVoted || isNarrator) {
+          btn.innerText = stmt.text;
+
+          if (isSpectator || hasVoted || isNarrator) {
             btn.style.opacity = '0.5';
             btn.style.cursor = 'default';
           } else {
-            btn.onclick = () => sendVote(stmt.id);
+            btn.onclick = async () => {
+              if (btn.dataset.voting === 'true') return;
+              btn.dataset.voting = 'true';
+
+              const allBtns = list.querySelectorAll('.statement-card');
+              allBtns.forEach(b => {
+                b.style.pointerEvents = 'none';
+                b.style.opacity = '0.5';
+              });
+
+              btn.style.opacity = '0.7';
+              btn.style.cursor = 'wait';
+              btn.innerText = '⏳ Envoi du vote...';
+
+              await sendVote(stmt.id);
+            };
           }
-          btn.innerText = stmt.text;
+
           list.appendChild(btn);
         });
       }
@@ -1146,25 +1319,20 @@
       const list = $('list-scores');
       list.innerHTML = '';
 
-      // Sort players by total score
-      const sorted = [...s.players].sort((a, b) => {
-        const sa = s.scores[a.id]?.total || 0;
-        const sb = s.scores[b.id]?.total || 0;
-        return sb - sa;
-      });
+      // Use leaderboard from snapshot (already sorted by server)
+      const lb = s.leaderboard || [];
 
-      sorted.forEach((p, idx) => {
+      lb.forEach((entry, idx) => {
         const row = document.createElement('div');
         row.className = 'result-row';
         if (idx === 0) row.classList.add('winner');
 
-        const sc = s.scores[p.id];
         row.innerHTML = `
              <div style="display:flex; align-items:center; gap:12px;">
                <span style="font-weight:700; width:20px;">#${idx + 1}</span>
-               <span>${p.nickname}</span>
+               <span>${entry.nickname}</span>
              </div>
-             <span class="score-badge">${sc ? sc.total : 0} pts</span>
+             <span class="score-badge">${entry.total || 0} pts</span>
            `;
         list.appendChild(row);
       });
@@ -1174,40 +1342,114 @@
       const list = $('live-scores-list');
       list.innerHTML = '';
 
-      if (!s.players || s.players.length === 0) {
+      // Use leaderboard from snapshot (already sorted by server)
+      const lb = s.leaderboard || [];
+
+      if (lb.length === 0) {
         list.innerHTML = '<p style="text-align:center; color:var(--txt-muted); font-size:0.85rem;">Aucun joueur</p>';
         return;
       }
 
-      // Sort players by total score
-      const sorted = [...s.players].sort((a, b) => {
-        const sa = s.scores[a.id]?.total || 0;
-        const sb = s.scores[b.id]?.total || 0;
-        return sb - sa;
-      });
-
-      sorted.forEach((p, idx) => {
-        const sc = s.scores[p.id] || { phase1: 0, phase2: 0, total: 0 };
+      lb.forEach((entry, idx) => {
         const row = document.createElement('div');
         row.className = 'score-row';
-        if (idx === 0 && sc.total > 0) row.classList.add('top');
+        if (idx === 0 && entry.total > 0) row.classList.add('top');
 
         row.innerHTML = `
           <div class="player-info">
             <span class="rank">#${idx + 1}</span>
-            <span class="nickname">${p.nickname}</span>
+            <span class="nickname">${entry.nickname}</span>
           </div>
-          <span class="points">${sc.total}</span>
+          <span class="points">${entry.total || 0}</span>
         `;
 
-        // Add details if there are scores
-        if (sc.phase1 > 0 || sc.phase2 > 0) {
+        if (entry.phase1 > 0 || entry.phase2 > 0) {
           const details = document.createElement('div');
           details.className = 'score-details';
-          details.innerHTML = `P1: ${sc.phase1} | P2: ${sc.phase2}`;
+          details.innerHTML = `P1: ${entry.phase1} | P2: ${entry.phase2}`;
           row.appendChild(details);
         }
 
+        list.appendChild(row);
+      });
+    }
+
+    /**
+     * Determine the live status of a player based on snapshot state.
+     * @param {Object} player - { id, nickname, groupId, isHost }
+     * @param {Object} s      - full snapshot
+     * @returns {{ emoji: string, text: string, cssClass: string }}
+     */
+    function getPlayerStatus(player, s) {
+      const partyStatus = s.status;
+
+      // --- LOBBY / PREP ---
+      if (partyStatus === 'LOBBY' || partyStatus === 'RUNNING_PHASE1_PREP') {
+        const submitted = (s.phaseTiming?.phase1Prep?.submittedPlayers || [])
+          .some(sp => sp.playerId === player.id);
+        if (submitted) return { emoji: '✅', text: 'Prêt', cssClass: 'status-ready' };
+        if (partyStatus === 'RUNNING_PHASE1_PREP') return { emoji: '✏️', text: 'Rédige...', cssClass: 'status-writing' };
+        return { emoji: '⏳', text: 'En attente', cssClass: 'status-waiting' };
+      }
+
+      // --- FINISHED ---
+      if (partyStatus === 'FINISHED') {
+        return { emoji: '🏁', text: 'Terminé', cssClass: 'status-finished' };
+      }
+
+      // --- RUNNING PHASE 1 ---
+      if (partyStatus === 'RUNNING_PHASE1') {
+        const group = s.groups.find(g => g.id === player.groupId);
+        if (!group) return { emoji: '⏳', text: 'En attente', cssClass: 'status-waiting' };
+        if (group.status === 'DONE') return { emoji: '🏁', text: 'Groupe terminé', cssClass: 'status-done' };
+        const round = group.currentRound;
+        if (!round) return { emoji: '⏳', text: 'Entre les manches', cssClass: 'status-waiting' };
+        if (round.narratorId === player.id) return { emoji: '🎤', text: 'Narrateur', cssClass: 'status-narrator' };
+        if (round.status === 'QUESTIONING') return { emoji: '👂', text: 'Écoute', cssClass: 'status-listening' };
+        if (round.status === 'VOTING') {
+          const hasVoted = (round.voterIds || []).includes(player.id);
+          return hasVoted
+            ? { emoji: '✅', text: 'A voté', cssClass: 'status-voted' }
+            : { emoji: '🗳️', text: 'Vote...', cssClass: 'status-voting' };
+        }
+        return { emoji: '⏳', text: 'En attente', cssClass: 'status-waiting' };
+      }
+
+      // --- RUNNING PHASE 2 ---
+      if (partyStatus === 'RUNNING_PHASE2') {
+        const round = s.phase2CurrentRound;
+        if (!round) return { emoji: '⏳', text: 'Entre les manches', cssClass: 'status-waiting' };
+        if (round.narratorId === player.id) return { emoji: '🎤', text: 'Narrateur', cssClass: 'status-narrator' };
+        if (round.status === 'QUESTIONING') return { emoji: '👂', text: 'Écoute', cssClass: 'status-listening' };
+        if (round.status === 'VOTING') {
+          const hasVoted = (round.voterIds || []).includes(player.id);
+          return hasVoted
+            ? { emoji: '✅', text: 'A voté', cssClass: 'status-voted' }
+            : { emoji: '🗳️', text: 'Vote...', cssClass: 'status-voting' };
+        }
+        return { emoji: '⏳', text: 'En attente', cssClass: 'status-waiting' };
+      }
+
+      return { emoji: '❓', text: 'Inconnu', cssClass: 'status-waiting' };
+    }
+
+    function renderPlayerStatusPanel(s) {
+      const list = $('player-status-list');
+      if (!list) return;
+      list.innerHTML = '';
+
+      s.players.forEach(p => {
+        const st = getPlayerStatus(p, s);
+        const groupIdx = getGroupIdx(s, p.groupId);
+        const groupColorClass = `group-color-${((groupIdx - 1) % 6) + 1}`;
+
+        const row = document.createElement('div');
+        row.className = 'player-status-row';
+        row.innerHTML = `
+          <span class="group-badge ${groupColorClass}" style="font-size: 0.65rem; padding: 2px 6px;">G${groupIdx}</span>
+          <span class="ps-name">${p.nickname}</span>
+          <span class="player-status-badge ${st.cssClass}" aria-label="${st.text}">${st.emoji} ${st.text}</span>
+        `;
         list.appendChild(row);
       });
     }
@@ -1230,7 +1472,7 @@
     /* --- SPECTATOR LINK --- */
     function updateSpectatorLink() {
       if (!state.code) return;
-      const url = `${window.location.origin}/spectate/${state.code}`;
+      const url = `${window.location.origin}/admin/${state.code}`;
       $('inp-spectator-url').value = url;
     }
 
@@ -1253,9 +1495,15 @@
       }
     };
 
+    /* --- HANDLE BROWSER BACK/FORWARD --- */
+    window.addEventListener('popstate', () => {
+      // On back/forward, re-init from URL
+      window.location.reload();
+    });
+
     /* --- INIT ON PAGE LOAD --- */
     window.addEventListener('DOMContentLoaded', () => {
-      checkUrlAndAutoJoin();
+      initFromUrl();
     });
 
   </script>

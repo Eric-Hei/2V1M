@@ -140,11 +140,51 @@ Ce script :
 - Affiche l'URL spectateur
 - Vérifie que le snapshot contient les joueurs
 
+## Statuts des Joueurs (v0.1.20+)
+
+Le panneau spectateur affiche en temps réel le statut de chaque joueur. Voici les états possibles :
+
+| Phase | Condition | Emoji | Texte | CSS Class |
+|---|---|---|---|---|
+| LOBBY | Énoncés non soumis | ⏳ | En attente | `status-waiting` |
+| LOBBY | Énoncés soumis | ✅ | Prêt | `status-ready` |
+| RUNNING_PHASE1_PREP | En train de rédiger | ✏️ | Rédige... | `status-writing` |
+| RUNNING_PHASE1_PREP | Énoncés soumis | ✅ | Prêt | `status-ready` |
+| RUNNING_PHASE1 | Groupe terminé | 🏁 | Groupe terminé | `status-done` |
+| RUNNING_PHASE1 | Pas de round actif | ⏳ | Entre les manches | `status-waiting` |
+| RUNNING_PHASE1 | C'est le narrateur | 🎤 | Narrateur | `status-narrator` |
+| RUNNING_PHASE1 | Round en QUESTIONING | 👂 | Écoute | `status-listening` |
+| RUNNING_PHASE1 | Round en VOTING, n'a pas voté | 🗳️ | Vote... | `status-voting` |
+| RUNNING_PHASE1 | Round en VOTING, a voté | ✅ | A voté | `status-voted` |
+| RUNNING_PHASE2 | C'est le narrateur | 🎤 | Narrateur | `status-narrator` |
+| RUNNING_PHASE2 | Round en QUESTIONING | 👂 | Écoute | `status-listening` |
+| RUNNING_PHASE2 | Round en VOTING, n'a pas voté | 🗳️ | Vote... | `status-voting` |
+| RUNNING_PHASE2 | Round en VOTING, a voté | ✅ | A voté | `status-voted` |
+| FINISHED | Toujours | 🏁 | Terminé | `status-finished` |
+
+### Logique de détermination
+
+La fonction `getPlayerStatus(player, snapshot)` détermine le statut en combinant :
+1. **`snapshot.status`** : la phase de la partie
+2. **`phaseTiming.phase1Prep.submittedPlayers`** : qui a soumis ses énoncés
+3. **Le groupe du joueur** et son `status` (WAITING, PLAYING, DONE)
+4. **Le `currentRound` du groupe** : le round actif
+5. **`currentRound.narratorId`** : est-ce le narrateur ?
+6. **`currentRound.voterIds`** : liste des joueurs ayant voté (exposé par le backend)
+7. **`currentRound.status`** : QUESTIONING vs VOTING
+
+### Données backend nécessaires
+
+Le champ `voterIds` est exposé dans `#publicRound()` :
+```javascript
+// round.voterIds = [playerId1, playerId2, ...]
+// Extrait depuis round.votes (Map en phase 1, Array en phase 2)
+```
+
 ## Limitations Actuelles
 
 - ❌ Pas de SSE pour le mode spectateur (utilise polling)
 - ❌ Pas de contrôle de la vue (suit automatiquement)
-- ❌ Pas de statistiques avancées (seulement scores)
 
 ## Améliorations Futures
 
